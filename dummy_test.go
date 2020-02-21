@@ -7,7 +7,7 @@ import (
 )
 
 func TestDummyProtocol(t *testing.T) {
-	peers := map[PartyID]string {
+	peers := map[PartyID]string{
 		0: "localhost:6660",
 		1: "localhost:6661",
 		2: "localhost:6662",
@@ -24,7 +24,7 @@ func TestDummyProtocol(t *testing.T) {
 		P[i].WaitGroup = wg
 		check(err)
 
-		dummyProtocol[i] = P[i].NewDummyProtocol(uint64(i+10))
+		dummyProtocol[i] = P[i].NewDummyProtocol(uint64(i + 10))
 	}
 
 	network := GetTestingTCPNetwork(P)

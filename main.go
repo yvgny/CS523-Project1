@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func main() {
 	prog := os.Args[0]
 	args := os.Args[1:]
@@ -32,17 +31,16 @@ func main() {
 	Client(PartyID(partyID), partyInput)
 }
 
-
 func Client(partyID PartyID, partyInput uint64) {
 
 	//N := uint64(len(peers))
-	peers := map[PartyID]string {
+	peers := map[PartyID]string{
 		0: "localhost:6660",
 		1: "localhost:6661",
 		2: "localhost:6662",
 	}
 
-	// Create a local party 
+	// Create a local party
 	lp, err := NewLocalParty(partyID, peers)
 	check(err)
 
@@ -50,13 +48,13 @@ func Client(partyID PartyID, partyInput uint64) {
 	network, err := NewTCPNetwork(lp)
 	check(err)
 
-	// Connect the circuit network 
+	// Connect the circuit network
 	err = network.Connect(lp)
 	check(err)
 	fmt.Println(lp, "connected")
-	<- time.After(time.Second) // Leave time for others to connect
+	<-time.After(time.Second) // Leave time for others to connect
 
-	// Create a new circuit evaluation protocol 
+	// Create a new circuit evaluation protocol
 	dummyProtocol := lp.NewDummyProtocol(partyInput)
 	// Bind evaluation protocol to the network
 	dummyProtocol.BindNetwork(network)

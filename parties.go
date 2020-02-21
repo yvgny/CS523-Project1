@@ -12,7 +12,6 @@ type Party struct {
 	Addr string
 }
 
-
 type LocalParty struct {
 	Party
 	*sync.WaitGroup
@@ -26,7 +25,7 @@ func check(err error) {
 }
 
 func NewLocalParty(id PartyID, peers map[PartyID]string) (*LocalParty, error) {
-	// Create a new local party from the peers map 
+	// Create a new local party from the peers map
 	p := &LocalParty{}
 	p.ID = id
 
@@ -48,7 +47,6 @@ func (lp *LocalParty) String() string {
 	// Print the party number
 	return fmt.Sprintf("party-%d", lp.ID)
 }
-
 
 type RemoteParty struct {
 	Party

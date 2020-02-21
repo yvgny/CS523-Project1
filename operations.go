@@ -28,9 +28,9 @@ func (ao Add) Output() WireID {
 }
 
 type AddCst struct {
-	In WireID
+	In       WireID
 	CstValue uint64
-	Out WireID
+	Out      WireID
 }
 
 func (aco AddCst) Output() WireID {
@@ -58,9 +58,9 @@ func (mo Mult) Output() WireID {
 }
 
 type MultCst struct {
-	In WireID
+	In       WireID
 	CstValue uint64
-	Out WireID
+	Out      WireID
 }
 
 func (mco MultCst) Output() WireID {
@@ -68,7 +68,7 @@ func (mco MultCst) Output() WireID {
 }
 
 type Reveal struct {
-	In WireID
+	In  WireID
 	Out WireID
 }
 

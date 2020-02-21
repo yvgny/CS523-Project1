@@ -13,10 +13,10 @@ type DummyMessage struct {
 
 type DummyProtocol struct {
 	*LocalParty
-	Chan  		 chan DummyMessage
-	Peers		 map[PartyID]*DummyRemote
+	Chan  chan DummyMessage
+	Peers map[PartyID]*DummyRemote
 
-	Input uint64
+	Input  uint64
 	Output uint64
 }
 
@@ -32,11 +32,10 @@ func (lp *LocalParty) NewDummyProtocol(input uint64) *DummyProtocol {
 	cep.Peers = make(map[PartyID]*DummyRemote, len(lp.Peers))
 	for i, rp := range lp.Peers {
 		cep.Peers[i] = &DummyRemote{
-			RemoteParty:  rp,
-			Chan:         make(chan DummyMessage, 32),
+			RemoteParty: rp,
+			Chan:        make(chan DummyMessage, 32),
 		}
 	}
-
 
 	cep.Input = input
 	cep.Output = input
@@ -75,7 +74,7 @@ func (cep *DummyProtocol) BindNetwork(nw *TCPNetworkStruct) {
 			var m DummyMessage
 			var open = true
 			for open {
-				m, open = <- rp.Chan
+				m, open = <-rp.Chan
 				//fmt.Println(cep, "sending", m, "to", rp)
 				check(binary.Write(conn, binary.BigEndian, m.Party))
 				check(binary.Write(conn, binary.BigEndian, m.Value))
