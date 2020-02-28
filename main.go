@@ -2,12 +2,66 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strconv"
+	"sync"
 	"time"
 )
 
-func main() {
+var circuitID int
+var testCircuit *TestCircuit
+
+/*func init(){
+	fmt.Println("JE SUIS INIT")
+	flag.IntVar(&circuitID,"id",1,"ID between 1 and 8 of the template circuit (default 1)")
+	flag.Parse()
+
+	if circuitID <= 0 || circuitID > 8{
+		panic("Invalid argument: ID must be between 1 and 8")
+	}
+
+	testCircuit = TestCircuits[circuitID-1]
+}*/
+
+func main(){
+	testCircuit = TestCircuits[2]
+	wg := sync.WaitGroup{}
+	wg.Add(len(testCircuit.Peers))
+
+	for partyID, _ := range testCircuit.Peers{
+		go func(id PartyID){
+
+			defer wg.Done()
+			partyInput := testCircuit.Inputs[id][GateID(id)]
+			// Create a local party
+			lp, err := NewLocalParty(id, testCircuit.Peers)
+			check(err)
+
+			// Create the network for the circuit
+			network, err := NewTCPNetwork(lp)
+			check(err)
+
+			// Connect the circuit network
+			err = network.Connect(lp)
+			check(err)
+			fmt.Println(lp, "connected")
+			<-time.After(time.Second) // Leave time for others to connect
+
+			// Create a new circuit evaluation protocol
+			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit)
+			// Bind evaluation protocol to the network
+			protocol.BindNetwork(network)
+
+			// Evaluate the circuit
+			protocol.Run()
+
+			fmt.Println(lp, "completed with output", protocol.Output, "where expected is", testCircuit.ExpOutput)
+
+		}(partyID)
+	}
+
+	wg.Wait()
+}
+
+/*func main() {
 	prog := os.Args[0]
 	args := os.Args[1:]
 
@@ -63,4 +117,4 @@ func Client(partyID PartyID, partyInput uint64) {
 	dummyProtocol.Run()
 
 	fmt.Println(lp, "completed with output", dummyProtocol.Output)
-}
+}*/

@@ -1,11 +1,17 @@
 package main
 
+import (
+	"fmt"
+	"math/big"
+)
+
 type WireID uint64
 
 type GateID uint64
 
 type Operation interface {
 	Output() WireID
+	Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int
 }
 
 type Input struct {
@@ -17,6 +23,11 @@ func (io Input) Output() WireID {
 	return io.Out
 }
 
+func (io Input) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int{
+	wireOutput[io.Out] = shares[io.Party]
+	return nil
+}
+
 type Add struct {
 	In1 WireID
 	In2 WireID
@@ -26,6 +37,12 @@ type Add struct {
 func (ao Add) Output() WireID {
 	return ao.Out
 }
+func (ao Add) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	fmt.Println("Salut", ao.In1, ao.In2, wireOutput,id)
+	wireOutput[ao.Out] = new(big.Int).Add(wireOutput[ao.In1], wireOutput[ao.In2])
+	return nil
+}
+
 
 type AddCst struct {
 	In       WireID
@@ -35,6 +52,13 @@ type AddCst struct {
 
 func (aco AddCst) Output() WireID {
 	return aco.Out
+}
+func (aco AddCst) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	wireOutput[aco.Out] = big.NewInt(wireOutput[aco.In].Int64())
+	if id == 0 {
+		wireOutput[aco.Out].Add(wireOutput[aco.Out], big.NewInt(int64(aco.CstValue)))
+	}
+	return nil
 }
 
 type Sub struct {
@@ -47,6 +71,11 @@ func (so Sub) Output() WireID {
 	return so.Out
 }
 
+func (so Sub) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	wireOutput[so.Out] = new(big.Int).Sub(wireOutput[so.In1], wireOutput[so.In2])
+	return nil
+}
+
 type Mult struct {
 	In1 WireID
 	In2 WireID
@@ -56,6 +85,11 @@ type Mult struct {
 func (mo Mult) Output() WireID {
 	return mo.Out
 }
+func (mo Mult) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	panic("Not implemented")
+	return nil
+}
+
 
 type MultCst struct {
 	In       WireID
@@ -67,6 +101,12 @@ func (mco MultCst) Output() WireID {
 	return mco.Out
 }
 
+func (mco MultCst) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	wireOutput[mco.Out] = new(big.Int).Mul(wireOutput[mco.In], big.NewInt(int64(mco.CstValue)))
+	return nil
+}
+
+
 type Reveal struct {
 	In  WireID
 	Out WireID
@@ -75,3 +115,7 @@ type Reveal struct {
 func (ro Reveal) Output() WireID {
 	return ro.Out
 }
+func (ro Reveal) Eval(shares map[PartyID]*big.Int, id PartyID,wireOutput map[WireID]*big.Int) *big.Int {
+	return wireOutput[ro.In]
+}
+

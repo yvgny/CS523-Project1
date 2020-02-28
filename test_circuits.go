@@ -12,9 +12,9 @@ var TestCircuits = []*TestCircuit{&Circuit1, &Circuit2, &Circuit3, &Circuit4, &C
 var Circuit1 = TestCircuit{
 	// f(a,b,c) = a + b + c
 	Peers: map[PartyID]string{
-		0: "localhost:6660",
-		1: "localhost:6661",
-		2: "localhost:6662",
+		0: "localhost:6676",
+		1: "localhost:6677",
+		2: "localhost:6678",
 	},
 	Inputs: map[PartyID]map[GateID]uint64{
 		0: {0: 18},

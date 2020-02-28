@@ -7,7 +7,7 @@ import (
 )
 
 func TestMPCProtocol(t *testing.T) {
-	for _, testCircuit := range TestCircuits {
+	for i, testCircuit := range TestCircuits {
 
 		N := uint64(len(testCircuit.Peers))
 		P := make([]*LocalParty, N, N)
@@ -37,8 +37,12 @@ func TestMPCProtocol(t *testing.T) {
 		wg.Wait()
 
 		for _, p := range protocol {
-			fmt.Println(p, "completed with output", p.Output)
+			if p.Output != testCircuit.ExpOutput{
+				t.FailNow()
+			}
 		}
+
+		fmt.Printf("Test for Circuit %d passed\n", i+1)
 
 	}
 
