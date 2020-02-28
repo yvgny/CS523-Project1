@@ -20,8 +20,9 @@ func Eval(circuit Circuit, shares map[PartyID]*big.Int, id PartyID) (*big.Int, e
 		case Input:
 			wireOutput[v.Out] = shares[v.Party]
 		case AddCst:
+			wireOutput[v.Out] = big.NewInt(wireOutput[v.In].Int64())
 			if id == 0 {
-				wireOutput[v.Out] = new(big.Int).Add(wireOutput[v.In], big.NewInt(int64(v.CstValue)))
+				wireOutput[v.Out].Add(wireOutput[v.Out], big.NewInt(int64(v.CstValue)))
 			}
 		case Reveal:
 			return wireOutput[v.In], nil
