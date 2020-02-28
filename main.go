@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"sync"
 	"time"
@@ -21,13 +22,20 @@ var testCircuit *TestCircuit
 	testCircuit = TestCircuits[circuitID-1]
 }*/
 
-func main(){
-	testCircuit = TestCircuits[2]
+func main() {
+	flag.IntVar(&circuitID, "id", 1, "ID between 1 and 8 of the template circuit (default 1)")
+	flag.Parse()
+
+	if circuitID <= 0 || circuitID > 8 {
+		panic("Invalid argument: ID must be between 1 and 8")
+	}
+
+	testCircuit = TestCircuits[circuitID-1]
 	wg := sync.WaitGroup{}
 	wg.Add(len(testCircuit.Peers))
 
-	for partyID, _ := range testCircuit.Peers{
-		go func(id PartyID){
+	for partyID, _ := range testCircuit.Peers {
+		go func(id PartyID) {
 
 			defer wg.Done()
 			partyInput := testCircuit.Inputs[id][GateID(id)]

@@ -9,8 +9,8 @@ func Eval(circuit Circuit, shares map[PartyID]*big.Int, id PartyID) (*big.Int, e
 	wireOutput := make(map[WireID]*big.Int)
 
 	for _, op := range circuit {
-		if ret := op.Eval(shares, id, wireOutput); ret != nil{
-			return  ret, nil
+		if ret := op.Eval(shares, id, wireOutput); ret != nil {
+			return ret, nil
 		}
 
 	}

@@ -109,9 +109,14 @@ func (cep *Protocol) Run() {
 	cep.InputShare.Mod(cep.InputShare, q)
 
 	inputShares := make(map[PartyID]*big.Int)
+	resultShares := make(map[PartyID]*big.Int)
 	inputShares[cep.ID] = cep.InputShare
 	received := 0
 	for m := range cep.Chan {
+		if _, ok := inputShares[m.Party]; ok {
+			resultShares[m.Party] = big.NewInt(int64(m.Value))
+			break
+		}
 		fmt.Println(cep, "received input share from", m.Party, ":", m.Value)
 		received++
 		inputShares[m.Party] = big.NewInt(int64(m.Value))
@@ -130,7 +135,6 @@ func (cep *Protocol) Run() {
 	}
 
 	received = 0
-	resultShares := make(map[PartyID]*big.Int)
 	resultShares[cep.ID] = resShare
 	for m := range cep.Chan {
 		fmt.Println(cep, "received result share from", m.Party, ":", m.Value)
