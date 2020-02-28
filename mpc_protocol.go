@@ -20,8 +20,9 @@ type Protocol struct {
 	Chan  chan Message
 	Peers map[PartyID]*Remote
 
-	Input       uint64
-	Output      uint64
+	Input      uint64
+	Output     uint64
+	Circuit    Circuit
 	InputShare *big.Int
 }
 
@@ -30,11 +31,12 @@ type Remote struct {
 	Chan chan Message
 }
 
-func (lp *LocalParty) NewProtocol(input uint64) *Protocol {
+func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 	cep := new(Protocol)
 	cep.LocalParty = lp
 	cep.Chan = make(chan Message, 32)
 	cep.Peers = make(map[PartyID]*Remote, len(lp.Peers))
+	cep.Circuit = circuit
 	for i, rp := range lp.Peers {
 		cep.Peers[i] = &Remote{
 			RemoteParty: rp,
@@ -103,20 +105,51 @@ func (cep *Protocol) Run() {
 		}
 	}
 	s := big.NewInt(int64(cep.Input))
-	cep.InputShare = new(big.Int).Sub(s,sum)
+	cep.InputShare = new(big.Int).Sub(s, sum)
 	cep.InputShare.Mod(cep.InputShare, q)
 
+	inputShares := make(map[PartyID]*big.Int)
 	received := 0
 	for m := range cep.Chan {
-		fmt.Println(cep, "received message from", m.Party, ":", m.Value)
-		cep.Output += m.Value
+		fmt.Println(cep, "received input share from", m.Party, ":", m.Value)
 		received++
+		inputShares[m.Party] = big.NewInt(int64(m.Value))
+		if received == len(cep.Peers)-1 {
+			break
+		}
+	}
+
+	resShare, err := Eval(cep.Circuit, inputShares, cep.ID)
+	check(err)
+
+	for _, peer := range cep.Peers {
+		if peer.ID != cep.ID {
+			peer.Chan <- Message{cep.ID, resShare.Uint64()}
+		}
+	}
+
+	received = 0
+	resultShares := make(map[PartyID]*big.Int)
+	resultShares[cep.ID] = resShare
+	for m := range cep.Chan {
+		fmt.Println(cep, "received result share from", m.Party, ":", m.Value)
+		received++
+		resultShares[m.Party] = big.NewInt(int64(m.Value))
 		if received == len(cep.Peers)-1 {
 			close(cep.Chan)
 		}
 	}
 
+	reveal := big.NewInt(0)
+	for _, s := range resultShares {
+		reveal.Add(reveal, s)
+	}
+
+	reveal.Mod(reveal, q)
+
 	if cep.WaitGroup != nil {
 		cep.WaitGroup.Done()
 	}
+
+	cep.Output = reveal.Uint64()
 }
