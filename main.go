@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 )
@@ -40,6 +41,7 @@ func main() {
 			defer wg.Done()
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
+			testCircuit.Peers[PartyID(math.MaxUint64)] = ThirdPartyAddr
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
 

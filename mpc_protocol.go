@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
+	"math"
 	"math/big"
 	"net"
-
-	"github.com/ldsec/lattigo/ring"
 )
 
 var q = big.NewInt(1<<16 + 1)
@@ -20,6 +20,7 @@ type Protocol struct {
 	*LocalParty
 	Chan  chan Message
 	Peers map[PartyID]*Remote
+	ThirdPartyChans ThirdPartyChannels
 
 	Input      uint64
 	Output     uint64
@@ -32,17 +33,30 @@ type Remote struct {
 	Chan chan Message
 }
 
+type ThirdPartyChannels struct{
+	Receive chan BeaverMessage
+	Send chan BeaverMessage
+}
+
+
 func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 	cep := new(Protocol)
 	cep.LocalParty = lp
 	cep.Chan = make(chan Message, 32)
 	cep.Peers = make(map[PartyID]*Remote, len(lp.Peers))
 	cep.Circuit = circuit
+
+	delete(lp.Peers, PartyID(math.MaxUint64))
 	for i, rp := range lp.Peers {
-		cep.Peers[i] = &Remote{
-			RemoteParty: rp,
-			Chan:        make(chan Message, 32),
-		}
+			cep.Peers[i] = &Remote{
+				RemoteParty: rp,
+				Chan:        make(chan Message, 32),
+			}
+	}
+
+	cep.ThirdPartyChans = ThirdPartyChannels{
+		Receive: make(chan BeaverMessage),
+		Send:    make(chan BeaverMessage),
 	}
 
 	cep.Input = input
@@ -88,6 +102,8 @@ func (cep *Protocol) BindNetwork(nw *TCPNetworkStruct) {
 			}
 		}(conn, rp)
 	}
+
+	//TODO sending/receiving loop beaver
 }
 
 func (cep *Protocol) Run() {
