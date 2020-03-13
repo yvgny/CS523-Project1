@@ -95,8 +95,7 @@ func (mo Mult) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id Party
 	MPCProtocol.ThirdPartyChans.Send <- query
 	response := <-MPCProtocol.ThirdPartyChans.Receive
 
-	fmt.Println(response)
-
+	//TODO compute end of computation
 	return nil
 }
 

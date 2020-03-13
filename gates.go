@@ -2,14 +2,16 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 )
 
-func Eval(circuit Circuit, shares map[PartyID]*big.Int, id PartyID) (*big.Int, error) {
+func Eval(MPCProtocol *Protocol, circuit Circuit, shares map[PartyID]*big.Int, id PartyID) (*big.Int, error) {
 	wireOutput := make(map[WireID]*big.Int)
 
 	for _, op := range circuit {
-		if ret := op.Eval(shares, id, wireOutput); ret != nil {
+		fmt.Println(op)
+		if ret := op.Eval(MPCProtocol, shares, id, wireOutput); ret != nil {
 			return ret, nil
 		}
 

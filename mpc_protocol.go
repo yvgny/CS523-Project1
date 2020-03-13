@@ -183,7 +183,7 @@ func (cep *Protocol) Run() {
 		}
 	}
 
-	resShare, err := Eval(cep.Circuit, inputShares, cep.ID)
+	resShare, err := Eval(cep, cep.Circuit, inputShares, cep.ID)
 	check(err)
 
 	for _, peer := range cep.Peers {

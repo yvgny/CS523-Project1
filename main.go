@@ -33,20 +33,13 @@ func main() {
 
 	testCircuit = TestCircuits[circuitID-1]
 	wg := sync.WaitGroup{}
-	wg.Add(len(testCircuit.Peers))
-
 	testCircuit.Peers[PartyID(math.MaxUint64)] = ThirdPartyAddr
-	lp, err := NewLocalParty(ThirdPartyID, testCircuit.Peers)
-	check(err)
-
-	beaverProtocol := lp.NewBeaverProtocol()
-	beaverProtocol.BindNetwork(nw)
+	wg.Add(len(testCircuit.Peers))
 
 	for partyID, _ := range testCircuit.Peers {
 		go func(id PartyID) {
 
 			defer wg.Done()
-			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
@@ -62,15 +55,24 @@ func main() {
 			<-time.After(time.Second) // Leave time for others to connect
 
 			// Create a new circuit evaluation protocol
-			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit)
-			// Bind evaluation protocol to the network
-			protocol.BindNetwork(network)
+			if id != ThirdPartyID {
+				protocol := lp.NewProtocol(testCircuit.Inputs[id][GateID(id)], testCircuit.Circuit)
+				// Bind evaluation protocol to the network
+				protocol.BindNetwork(network)
 
-			// Evaluate the circuit
-			protocol.Run()
+				// Evaluate the circuit
+				protocol.Run()
 
-			fmt.Println(lp, "completed with output", protocol.Output, "where expected is", testCircuit.ExpOutput)
+				fmt.Println(lp, "completed with output", protocol.Output, "where expected is", testCircuit.ExpOutput)
 
+			} else {
+				protocol := lp.NewBeaverProtocol()
+				// Bind evaluation protocol to the network
+				protocol.BindNetwork(network)
+
+				// Evaluate the circuit
+				protocol.Run()
+			}
 		}(partyID)
 	}
 

@@ -47,6 +47,7 @@ func (lp *LocalParty) NewBeaverProtocol() *BeaverProtocol {
 	cep.LocalParty = lp
 	cep.Peers = make(map[PartyID]*BeaverRemote, len(lp.Peers))
 	cep.Triplets = make(map[BeaverKey][]BeaverTriplet)
+	cep.ReceiveChan = make(chan BeaverMessage, 32)
 	for i, rp := range lp.Peers {
 		cep.Peers[i] = &BeaverRemote{
 			RemoteParty: rp,
@@ -80,7 +81,7 @@ func (cep *BeaverProtocol) BindNetwork(nw *TCPNetworkStruct) {
 				check(err)
 				err = binary.Read(conn, binary.BigEndian, &m.Out)
 				check(err)
-				//fmt.Println(cep, "receiving", msg, "from", rp)
+				//fmt.Println(cep, "receiving", m, "from", rp)
 				cep.ReceiveChan <- m
 			}
 		}(conn, rp)
@@ -113,6 +114,7 @@ func GenerateTriplets(triplets []BeaverTriplet) {
 	a := ring.RandInt(q)
 	b := ring.RandInt(q)
 	c := big.NewInt(0).Mul(a, b)
+	c.Mod(c, q)
 	for i := 0; i < len(triplets)-1; i++ {
 		a_share := ring.RandInt(q)
 		b_share := ring.RandInt(q)
