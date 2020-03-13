@@ -27,7 +27,7 @@ func main() {
 	flag.IntVar(&circuitID, "id", 1, "ID between 1 and 8 of the template circuit (default 1)")
 	flag.Parse()
 
-	if circuitID <= 0 || circuitID > 8 {
+	if circuitID <= 0 || circuitID > 9 {
 		panic("Invalid argument: ID must be between 1 and 8")
 	}
 
@@ -35,13 +35,19 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(len(testCircuit.Peers))
 
+	testCircuit.Peers[PartyID(math.MaxUint64)] = ThirdPartyAddr
+	lp, err := NewLocalParty(ThirdPartyID, testCircuit.Peers)
+	check(err)
+
+	beaverProtocol := lp.NewBeaverProtocol()
+	beaverProtocol.BindNetwork(nw)
+
 	for partyID, _ := range testCircuit.Peers {
 		go func(id PartyID) {
 
 			defer wg.Done()
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
-			testCircuit.Peers[PartyID(math.MaxUint64)] = ThirdPartyAddr
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
 

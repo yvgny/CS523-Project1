@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
-	"math"
 	"math/big"
 	"net"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 var q = big.NewInt(1<<16 + 1)
@@ -18,8 +18,8 @@ type Message struct {
 
 type Protocol struct {
 	*LocalParty
-	Chan  chan Message
-	Peers map[PartyID]*Remote
+	Chan            chan Message
+	Peers           map[PartyID]*Remote
 	ThirdPartyChans ThirdPartyChannels
 
 	Input      uint64
@@ -33,11 +33,10 @@ type Remote struct {
 	Chan chan Message
 }
 
-type ThirdPartyChannels struct{
+type ThirdPartyChannels struct {
 	Receive chan BeaverMessage
-	Send chan BeaverMessage
+	Send    chan BeaverMessage
 }
-
 
 func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 	cep := new(Protocol)
@@ -46,12 +45,12 @@ func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 	cep.Peers = make(map[PartyID]*Remote, len(lp.Peers))
 	cep.Circuit = circuit
 
-	delete(lp.Peers, PartyID(math.MaxUint64))
+	delete(lp.Peers, ThirdPartyID)
 	for i, rp := range lp.Peers {
-			cep.Peers[i] = &Remote{
-				RemoteParty: rp,
-				Chan:        make(chan Message, 32),
-			}
+		cep.Peers[i] = &Remote{
+			RemoteParty: rp,
+			Chan:        make(chan Message, 32),
+		}
 	}
 
 	cep.ThirdPartyChans = ThirdPartyChannels{
@@ -66,7 +65,7 @@ func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 func (cep *Protocol) BindNetwork(nw *TCPNetworkStruct) {
 	for partyID, conn := range nw.Conns {
 
-		if partyID == cep.ID {
+		if partyID == cep.ID || partyID == ThirdPartyID {
 			continue
 		}
 
@@ -103,7 +102,50 @@ func (cep *Protocol) BindNetwork(nw *TCPNetworkStruct) {
 		}(conn, rp)
 	}
 
-	//TODO sending/receiving loop beaver
+	// Receiving loop from remote
+	go func(conn net.Conn) {
+		for {
+			m := BeaverMessage{}
+			var a, b, c uint64
+			var err error
+			err = binary.Read(conn, binary.BigEndian, &m.PartyID)
+			check(err)
+			err = binary.Read(conn, binary.BigEndian, &m.PartyCount)
+			check(err)
+			err = binary.Read(conn, binary.BigEndian, &m.In1)
+			check(err)
+			err = binary.Read(conn, binary.BigEndian, &m.In2)
+			check(err)
+			err = binary.Read(conn, binary.BigEndian, &m.Out)
+			check(err)
+			err = binary.Read(conn, binary.BigEndian, &a)
+			check(err)
+			m.a = big.NewInt(int64(a))
+			err = binary.Read(conn, binary.BigEndian, &b)
+			check(err)
+			m.b = big.NewInt(int64(b))
+			err = binary.Read(conn, binary.BigEndian, &c)
+			check(err)
+			m.c = big.NewInt(int64(c))
+			//fmt.Println(cep, "receiving", msg, "from", rp)
+			cep.ThirdPartyChans.Receive <- m
+		}
+	}(nw.Conns[ThirdPartyID])
+
+	// Sending loop of remote
+	go func(conn net.Conn) {
+		var m BeaverMessage
+		var open = true
+		for open {
+			m, open = <-cep.ThirdPartyChans.Send
+			//fmt.Println(cep, "sending", m, "to", rp)
+			check(binary.Write(conn, binary.BigEndian, m.PartyID))
+			check(binary.Write(conn, binary.BigEndian, m.PartyCount))
+			check(binary.Write(conn, binary.BigEndian, m.In1))
+			check(binary.Write(conn, binary.BigEndian, m.In2))
+			check(binary.Write(conn, binary.BigEndian, m.Out))
+		}
+	}(nw.Conns[ThirdPartyID])
 }
 
 func (cep *Protocol) Run() {

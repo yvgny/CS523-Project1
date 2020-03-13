@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/ldsec/lattigo/ring"
 )
 
 type WireID uint64
@@ -13,8 +11,7 @@ type GateID uint64
 
 type Operation interface {
 	Output() WireID
-	Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int
-	GenerateTriplet(count int) *BeaverTriplet
+	Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int
 }
 
 type Input struct {
@@ -26,12 +23,8 @@ func (io Input) Output() WireID {
 	return io.Out
 }
 
-func (io Input) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (io Input) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	wireOutput[io.Out] = shares[io.Party]
-	return nil
-}
-
-func (io Input) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -44,12 +37,9 @@ type Add struct {
 func (ao Add) Output() WireID {
 	return ao.Out
 }
-func (ao Add) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (ao Add) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	fmt.Println("Salut", ao.In1, ao.In2, wireOutput, id)
 	wireOutput[ao.Out] = new(big.Int).Add(wireOutput[ao.In1], wireOutput[ao.In2])
-	return nil
-}
-func (ao Add) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -62,15 +52,11 @@ type AddCst struct {
 func (aco AddCst) Output() WireID {
 	return aco.Out
 }
-func (aco AddCst) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (aco AddCst) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	wireOutput[aco.Out] = big.NewInt(wireOutput[aco.In].Int64())
 	if id == 0 {
 		wireOutput[aco.Out].Add(wireOutput[aco.Out], big.NewInt(int64(aco.CstValue)))
 	}
-	return nil
-}
-
-func (aco AddCst) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -84,11 +70,8 @@ func (so Sub) Output() WireID {
 	return so.Out
 }
 
-func (so Sub) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (so Sub) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	wireOutput[so.Out] = new(big.Int).Sub(wireOutput[so.In1], wireOutput[so.In2])
-	return nil
-}
-func (so Sub) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -101,22 +84,20 @@ type Mult struct {
 func (mo Mult) Output() WireID {
 	return mo.Out
 }
-func (mo Mult) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
-	panic("Not implemented")
-}
+func (mo Mult) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+	query := BeaverMessage{}
+	query.PartyID = id
+	query.PartyCount = uint64(len(MPCProtocol.Peers))
+	query.In1 = mo.In1
+	query.In2 = mo.In2
+	query.Out = mo.Out
 
-func (mo Mult) GenerateTriplet(count int) *BeaverTriplet {
-	a := ring.RandInt(q)
-	b := ring.RandInt(q)
-	triplet := &BeaverTriplet{
-		In1: mo.In1,
-		In2: mo.In2,
-		Out: mo.Out,
-		a:   a,
-		b:   b,
-		c:   big.NewInt(0).Mul(a, b),
-	}
-	return triplet
+	MPCProtocol.ThirdPartyChans.Send <- query
+	response := <-MPCProtocol.ThirdPartyChans.Receive
+
+	fmt.Println(response)
+
+	return nil
 }
 
 type MultCst struct {
@@ -129,12 +110,8 @@ func (mco MultCst) Output() WireID {
 	return mco.Out
 }
 
-func (mco MultCst) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (mco MultCst) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	wireOutput[mco.Out] = new(big.Int).Mul(wireOutput[mco.In], big.NewInt(int64(mco.CstValue)))
-	return nil
-}
-
-func (mco MultCst) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -146,9 +123,6 @@ type Reveal struct {
 func (ro Reveal) Output() WireID {
 	return ro.Out
 }
-func (ro Reveal) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
+func (ro Reveal) Eval(MPCProtocol *Protocol, shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	return wireOutput[ro.In].Mod(wireOutput[ro.In], q)
-}
-func (ro Reveal) GenerateTriplet(count int) *BeaverTriplet {
-	return nil
 }

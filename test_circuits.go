@@ -419,3 +419,36 @@ var Circuit8 = TestCircuit{
 	},
 	ExpOutput: 666,
 }
+
+//TODO: Our test
+var Circuit9 = TestCircuit{
+	// f(a,b) = a * b
+	Peers: map[PartyID]string{
+		0: "localhost:6660",
+		1: "localhost:6661",
+	},
+	Inputs: map[PartyID]map[GateID]uint64{
+		0: {0: 11},
+		1: {1: 7},
+	},
+	Circuit: []Operation{
+		&Input{
+			Party: 0,
+			Out:   0,
+		},
+		&Input{
+			Party: 1,
+			Out:   1,
+		},
+		&Mult{
+			In1: 0,
+			In2: 1,
+			Out: 2,
+		},
+		&Reveal{
+			In:  2,
+			Out: 3,
+		},
+	},
+	ExpOutput: 77,
+}
