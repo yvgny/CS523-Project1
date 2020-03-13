@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 type WireID uint64
@@ -12,6 +14,7 @@ type GateID uint64
 type Operation interface {
 	Output() WireID
 	Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int
+	GenerateTriplet(count int) *BeaverTriplet
 }
 
 type Input struct {
@@ -28,6 +31,10 @@ func (io Input) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[Wir
 	return nil
 }
 
+func (io Input) GenerateTriplet(count int) *BeaverTriplet {
+	return nil
+}
+
 type Add struct {
 	In1 WireID
 	In2 WireID
@@ -40,6 +47,9 @@ func (ao Add) Output() WireID {
 func (ao Add) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	fmt.Println("Salut", ao.In1, ao.In2, wireOutput, id)
 	wireOutput[ao.Out] = new(big.Int).Add(wireOutput[ao.In1], wireOutput[ao.In2])
+	return nil
+}
+func (ao Add) GenerateTriplet(count int) *BeaverTriplet {
 	return nil
 }
 
@@ -60,6 +70,10 @@ func (aco AddCst) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[W
 	return nil
 }
 
+func (aco AddCst) GenerateTriplet(count int) *BeaverTriplet {
+	return nil
+}
+
 type Sub struct {
 	In1 WireID
 	In2 WireID
@@ -74,6 +88,9 @@ func (so Sub) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireI
 	wireOutput[so.Out] = new(big.Int).Sub(wireOutput[so.In1], wireOutput[so.In2])
 	return nil
 }
+func (so Sub) GenerateTriplet(count int) *BeaverTriplet {
+	return nil
+}
 
 type Mult struct {
 	In1 WireID
@@ -86,7 +103,20 @@ func (mo Mult) Output() WireID {
 }
 func (mo Mult) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	panic("Not implemented")
-	return nil
+}
+
+func (mo Mult) GenerateTriplet(count int) *BeaverTriplet {
+	a := ring.RandInt(q)
+	b := ring.RandInt(q)
+	triplet := &BeaverTriplet{
+		In1: mo.In1,
+		In2: mo.In2,
+		Out: mo.Out,
+		a:   a,
+		b:   b,
+		c:   big.NewInt(0).Mul(a, b),
+	}
+	return triplet
 }
 
 type MultCst struct {
@@ -104,6 +134,10 @@ func (mco MultCst) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[
 	return nil
 }
 
+func (mco MultCst) GenerateTriplet(count int) *BeaverTriplet {
+	return nil
+}
+
 type Reveal struct {
 	In  WireID
 	Out WireID
@@ -114,4 +148,7 @@ func (ro Reveal) Output() WireID {
 }
 func (ro Reveal) Eval(shares map[PartyID]*big.Int, id PartyID, wireOutput map[WireID]*big.Int) *big.Int {
 	return wireOutput[ro.In].Mod(wireOutput[ro.In], q)
+}
+func (ro Reveal) GenerateTriplet(count int) *BeaverTriplet {
+	return nil
 }

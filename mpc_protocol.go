@@ -1,11 +1,12 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math/big"
 	"net"
+
+	"github.com/ldsec/lattigo/ring"
 )
 
 var q = big.NewInt(1<<16 + 1)
@@ -97,8 +98,7 @@ func (cep *Protocol) Run() {
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
 
-			share, err := rand.Int(rand.Reader, q)
-			check(err)
+			share := ring.RandInt(q)
 
 			sum.Add(sum, share)
 			peer.Chan <- Message{cep.ID, share.Uint64()}
