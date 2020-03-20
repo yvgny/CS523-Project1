@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -11,16 +12,35 @@ import (
 
 var q = big.NewInt(1<<16 + 1)
 
+type MessageType int
+
+const (
+	MPCMessageID MessageType = iota
+	MultiplicationMessageID
+)
+
 type Message struct {
+	MPCMessage            *MPCMessage
+	MultiplicationMessage *MultiplicationMessage
+}
+type MultiplicationMessage struct {
+	Party   PartyID
+	GateKey BeaverKey
+	X_a     uint64
+	Y_b     uint64
+}
+
+type MPCMessage struct {
 	Party PartyID
 	Value uint64
 }
 
 type Protocol struct {
 	*LocalParty
-	Chan            chan Message
-	Peers           map[PartyID]*Remote
-	ThirdPartyChans ThirdPartyChannels
+	Chan               chan MPCMessage
+	MultiplicationChan chan MultiplicationMessage
+	Peers              map[PartyID]*Remote
+	ThirdPartyChans    ThirdPartyChannels
 
 	Input      uint64
 	Output     uint64
@@ -41,7 +61,7 @@ type ThirdPartyChannels struct {
 func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit) *Protocol {
 	cep := new(Protocol)
 	cep.LocalParty = lp
-	cep.Chan = make(chan Message, 32)
+	cep.Chan = make(chan MPCMessage, 32)
 	cep.Peers = make(map[PartyID]*Remote, len(lp.Peers))
 	cep.Circuit = circuit
 
@@ -74,18 +94,41 @@ func (cep *Protocol) BindNetwork(nw *TCPNetworkStruct) {
 		// Receiving loop from remote
 		go func(conn net.Conn, rp *Remote) {
 			for {
-				var id, val uint64
+				var msgID MessageType
 				var err error
-				err = binary.Read(conn, binary.BigEndian, &id)
+				err = binary.Read(conn, binary.BigEndian, &msgID)
 				check(err)
-				err = binary.Read(conn, binary.BigEndian, &val)
-				check(err)
-				msg := Message{
-					Party: PartyID(id),
-					Value: val,
+				switch msgID {
+				case MPCMessageID:
+					var id, val uint64
+					err = binary.Read(conn, binary.BigEndian, &id)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &val)
+					check(err)
+					msg := MPCMessage{
+						Party: PartyID(id),
+						Value: val,
+					}
+					cep.Chan <- msg
+				case MultiplicationMessageID:
+					var multMsg MultiplicationMessage
+					err = binary.Read(conn, binary.BigEndian, &multMsg.Party)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &multMsg.GateKey.In1)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &multMsg.GateKey.In2)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &multMsg.GateKey.Out)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &multMsg.X_a)
+					check(err)
+					err = binary.Read(conn, binary.BigEndian, &multMsg.Y_b)
+					check(err)
+				default:
+					err = errors.New("Unkown message ID type")
+					check(err)
 				}
 				//fmt.Println(cep, "receiving", msg, "from", rp)
-				cep.Chan <- msg
 			}
 		}(conn, rp)
 
@@ -95,9 +138,25 @@ func (cep *Protocol) BindNetwork(nw *TCPNetworkStruct) {
 			var open = true
 			for open {
 				m, open = <-rp.Chan
-				//fmt.Println(cep, "sending", m, "to", rp)
-				check(binary.Write(conn, binary.BigEndian, m.Party))
-				check(binary.Write(conn, binary.BigEndian, m.Value))
+				if m.MPCMessage != nil {
+					//fmt.Println(cep, "sending", m, "to", rp)
+					check(binary.Write(conn, binary.BigEndian, m.MPCMessage.Party))
+					check(binary.Write(conn, binary.BigEndian, m.MPCMessage.Value))
+				} else if m.MultiplicationMessage != nil {
+					var err error
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.Party)
+					check(err)
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.GateKey.In1)
+					check(err)
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.GateKey.In2)
+					check(err)
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.GateKey.Out)
+					check(err)
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.X_a)
+					check(err)
+					err = binary.Write(conn, binary.BigEndian, &m.MultiplicationMessage.Y_b)
+					check(err)
+				}
 			}
 		}(conn, rp)
 	}
@@ -152,6 +211,15 @@ func (cep *Protocol) Run() {
 
 	fmt.Println(cep, "is running")
 
+	go func() {
+		var m MultiplicationMessage
+		var open = true
+		for open {
+			m, open = <-cep.MultiplicationChan
+
+		}
+	}()
+
 	sum := big.NewInt(0)
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
@@ -159,7 +227,7 @@ func (cep *Protocol) Run() {
 			share := ring.RandInt(q)
 
 			sum.Add(sum, share)
-			peer.Chan <- Message{cep.ID, share.Uint64()}
+			peer.Chan <- Message{MPCMessage: &MPCMessage{cep.ID, share.Uint64()}}
 		}
 	}
 	s := big.NewInt(int64(cep.Input))
@@ -188,7 +256,7 @@ func (cep *Protocol) Run() {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- Message{cep.ID, resShare.Uint64()}
+			peer.Chan <- Message{MPCMessage: &MPCMessage{cep.ID, resShare.Uint64()}}
 		}
 	}
 
