@@ -7,7 +7,7 @@ type TestCircuit struct {
 	ExpOutput uint64                        // Expected output
 }
 
-var TestCircuits = []*TestCircuit{&Circuit1, &Circuit2, &Circuit3, &Circuit4, &Circuit5, &Circuit6, &Circuit7, &Circuit8}
+var TestCircuits = []*TestCircuit{&Circuit1, &Circuit2, &Circuit3, &Circuit4, &Circuit5, &Circuit6, &Circuit7, &Circuit8, &Circuit9}
 
 var Circuit1 = TestCircuit{
 	// f(a,b,c) = a + b + c
@@ -418,4 +418,35 @@ var Circuit8 = TestCircuit{
 		},
 	},
 	ExpOutput: 666,
+}
+var Circuit9 = TestCircuit{
+	// f(a,b) = a * b
+	Peers: map[PartyID]string{
+		0: "localhost:6660",
+		1: "localhost:6661",
+	},
+	Inputs: map[PartyID]map[GateID]uint64{
+		0: {0: 11},
+		1: {1: 8},
+	},
+	Circuit: []Operation{
+		&Input{
+			Party: 0,
+			Out:   0,
+		},
+		&Input{
+			Party: 1,
+			Out:   1,
+		},
+		&Mult{
+			In1: 0,
+			In2: 1,
+			Out: 2,
+		},
+		&Reveal{
+			In:  2,
+			Out: 3,
+		},
+	},
+	ExpOutput: 88,
 }

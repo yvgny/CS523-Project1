@@ -26,11 +26,25 @@ func main() {
 	flag.IntVar(&circuitID, "id", 1, "ID between 1 and 8 of the template circuit (default 1)")
 	flag.Parse()
 
-	if circuitID <= 0 || circuitID > 8 {
+	if circuitID <= 0 || circuitID > 9 {
 		panic("Invalid argument: ID must be between 1 and 8")
 	}
 
 	testCircuit = TestCircuits[circuitID-1]
+	beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
+
+	for peerID, _ := range testCircuit.Peers {
+		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
+	}
+
+	for _, op := range testCircuit.Circuit {
+		if triplets := op.BeaverTriplet(len(testCircuit.Peers)); triplets != nil {
+			for id, triplet := range triplets {
+				beaverTriplets[PartyID(id)][op.Output()] = triplet
+			}
+		}
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(testCircuit.Peers))
 
@@ -54,7 +68,8 @@ func main() {
 			<-time.After(time.Second) // Leave time for others to connect
 
 			// Create a new circuit evaluation protocol
-			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit)
+			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit, beaverTriplets[id])
+
 			// Bind evaluation protocol to the network
 			protocol.BindNetwork(network)
 
