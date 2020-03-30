@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 type BeaverMessage struct {
@@ -18,13 +19,13 @@ type BeaverProtocol struct {
 	Params         *bfv.Parameters
 	Peers          map[PartyID]*BeaverRemoteParty
 	Encoder        bfv.Encoder
-	Evaluator bfv.Evaluator
+	Evaluator      bfv.Evaluator
 	BeaverTriplets Triplet
 }
 
 type Triplet struct {
-	b *bfv.Plaintext
-	c []uint64
+	b  *bfv.Plaintext
+	c  []uint64
 	sk *bfv.SecretKey
 }
 
@@ -73,7 +74,7 @@ func (cep *BeaverProtocol) BindNetwork(nw *TCPNetworkStruct) {
 				err = binary.Read(conn, binary.BigEndian, &val)
 				check(err)
 
-				msg := BeaverMessage{Size:size, Value:val}
+				msg := BeaverMessage{Size: size, Value: val}
 				//fmt.Println(cep, "receiving", msg, "from", rp)
 				rp.ReceiveChan <- msg
 			}
@@ -144,9 +145,34 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			mul := bfv.NewCiphertext(cep.Params, 1)
 			cep.Evaluator.Mul(dj, bi, mul)
 
-			//TODO: errors (ligne 19 et 20 protocol)
+			dij_clean := bfv.NewCiphertext(cep.Params, 1)
+			cep.Evaluator.Add(mul, rijPt, dij_clean)
+
+			//TODO: verify errors (ligne 19 et 20 protocol)
+
+			contextQP, err := ring.NewContextWithParams(1<<cep.Params.LogN, append(cep.Params.Qi, cep.Params.Pi...))
+
+			// Get value of the ciphertext
+			dij_clean_values := dij_clean.Value()
+			bound := uint64(cep.Params.Sigma * 6)
+
+			for i, _ := range dij_clean_values {
+				// Generate error
+				err_poly := contextQP.SampleGaussianNTTNew(cep.Params.Sigma, bound)
+
+				// Add to current polynomial
+				res := contextQP.NewPoly()
+				contextQP.Add(dij_clean_values[i], err_poly, res)
+				dij_clean_values[i] = res
+			}
+
+			// Transform back to ciphertext
 			dij := bfv.NewCiphertext(cep.Params, 1)
-			cep.Evaluator.Add(mul, rijPt, dij)
+			dij.SetValue(dij_clean_values)
+
+			//
+			// End of errors handling
+			//
 
 			bytes, err := dij.MarshalBinary()
 			check(err)
@@ -172,7 +198,7 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 
 	ski := keyGen.GenSecretKey()
 
-	cep.BeaverTriplets = Triplet{b: biPt, c: ci, sk:ski}
+	cep.BeaverTriplets = Triplet{b: biPt, c: ci, sk: ski}
 
 	encryptor := bfv.NewEncryptorFromSk(cep.Params, ski)
 	di := encryptor.EncryptNew(aiPt)
@@ -185,6 +211,5 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 			peer.Chan <- beaverMessage
 		}
 	}
-
 
 }
