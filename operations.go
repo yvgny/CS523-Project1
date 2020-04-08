@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"math/big"
 )
 
@@ -172,8 +171,6 @@ func (mo Mult) Eval(cep *Protocol) {
 			Y_b.Add(Y_b, big.NewInt(int64(m.MPCMessage.Value)))
 		}
 	}
-
-	fmt.Println("id:", cep.ID, "x,y: ", x.Uint64(), y.Uint64(), "a, b, c", a.Uint64(), b.Uint64(), c.Uint64(), "x-a, y-b:", X_a.Uint64(), Y_b.Uint64())
 
 	z := big.NewInt(0)
 	z.Add(z, c)

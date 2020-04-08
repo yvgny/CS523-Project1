@@ -101,8 +101,6 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			dij_clean := bfv.NewCiphertext(cep.Params, 1)
 			cep.Evaluator.Add(mul, rijPt, dij_clean)
 
-			//TODO: verify errors (ligne 19 et 20 protocol)
-
 			contextQP, err := ring.NewContextWithParams(1<<cep.Params.LogN, cep.Params.Qi)
 
 			// Get value of the ciphertext
