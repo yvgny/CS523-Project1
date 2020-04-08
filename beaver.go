@@ -1,9 +1,8 @@
 package main
 
 import (
-	"encoding/binary"
+	"errors"
 	"fmt"
-	"net"
 
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
@@ -17,7 +16,6 @@ type BeaverMessage struct {
 type BeaverProtocol struct {
 	*LocalParty
 	Params         *bfv.Parameters
-	Peers          map[PartyID]*BeaverRemoteParty
 	Encoder        bfv.Encoder
 	Evaluator      bfv.Evaluator
 	BeaverTriplets Triplets
@@ -40,60 +38,11 @@ type BeaverRemoteParty struct {
 func (lp *LocalParty) NewBeaverProtocol(params *bfv.Parameters) *BeaverProtocol {
 	cep := new(BeaverProtocol)
 	cep.LocalParty = lp
-	cep.Peers = make(map[PartyID]*BeaverRemoteParty, len(lp.Peers))
 	cep.Params = params
 	cep.Encoder = bfv.NewEncoder(params)
 	cep.Evaluator = bfv.NewEvaluator(params)
-	for i, rp := range lp.Peers {
-		cep.Peers[i] = &BeaverRemoteParty{
-			RemoteParty: rp,
-			Chan:        make(chan BeaverMessage, 32),
-			ReceiveChan: make(chan BeaverMessage, 32),
-		}
-	}
 
 	return cep
-}
-
-func (cep *BeaverProtocol) BindNetwork(nw *TCPNetworkStruct) {
-	for partyID, conn := range nw.Conns {
-
-		if partyID == cep.ID {
-			continue
-		}
-
-		rp := cep.Peers[partyID]
-
-		// Receiving loop from remote
-		go func(conn net.Conn, rp *BeaverRemoteParty) {
-			for {
-				var size uint64
-
-				var err error
-				err = binary.Read(conn, binary.BigEndian, &size)
-				check(err)
-				val := make([]byte, size)
-				err = binary.Read(conn, binary.BigEndian, &val)
-				check(err)
-
-				msg := BeaverMessage{Size: size, Value: val}
-				//fmt.Println(cep, "receiving", msg, "from", rp)
-				rp.ReceiveChan <- msg
-			}
-		}(conn, rp)
-
-		// Sending loop of remote
-		go func(conn net.Conn, rp *BeaverRemoteParty) {
-			var m BeaverMessage
-			var open = true
-			for open {
-				m, open = <-rp.Chan
-				//fmt.Println(cep, "sending", m, "to", rp)
-				check(binary.Write(conn, binary.BigEndian, m.Size))
-				check(binary.Write(conn, binary.BigEndian, m.Value))
-			}
-		}(conn, rp)
-	}
 }
 
 func (cep *BeaverProtocol) Run() {
@@ -111,8 +60,11 @@ func (cep *BeaverProtocol) ComputeC() {
 	for id, peer := range cep.Peers {
 		if id != cep.ID {
 			msg := <-peer.ReceiveChan
+			if msg.BeaverMessage == nil {
+				check(errors.New("MPCMessage received instead of BeaverMessage"))
+			}
 			dij := bfv.NewCiphertext(cep.Params, 1)
-			err := dij.UnmarshalBinary(msg.Value)
+			err := dij.UnmarshalBinary(msg.BeaverMessage.Value)
 			check(err)
 			cep.Evaluator.Add(encC, dij, encC)
 		}
@@ -129,8 +81,11 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 	for id, peer := range cep.Peers {
 		if id != cep.ID {
 			msg := <-peer.ReceiveChan
+			if msg.BeaverMessage == nil {
+				check(errors.New("MPCMessage received instead of BeaverMessage"))
+			}
 			dj := bfv.NewCiphertext(cep.Params, 1)
-			err := dj.UnmarshalBinary(msg.Value)
+			err := dj.UnmarshalBinary(msg.BeaverMessage.Value)
 			check(err)
 
 			rij := newRandomVec(1<<cep.Params.LogN, cep.Params.T)
@@ -175,7 +130,10 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			bytes, err := dij.MarshalBinary()
 			check(err)
 			beaverMessage := BeaverMessage{Size: uint64(len(bytes)), Value: bytes}
-			peer.Chan <- beaverMessage
+			msg = Message{
+				BeaverMessage: &beaverMessage,
+			}
+			peer.Chan <- msg
 
 		}
 	}
@@ -206,15 +164,11 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 
 	for id, peer := range cep.Peers {
 		if id != cep.ID {
-			peer.Chan <- beaverMessage
+			msg := Message{
+				BeaverMessage: &beaverMessage,
+			}
+			peer.Chan <- msg
 		}
 	}
 
-}
-
-func (cep *BeaverProtocol) Close() {
-	for _, peer := range cep.Peers {
-		close(peer.ReceiveChan)
-		close(peer.Chan)
-	}
 }

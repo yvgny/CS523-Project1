@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 )
@@ -32,7 +33,7 @@ func (io Input) generateShares(cep *Protocol) {
 
 			sum.Add(sum, share)
 			fmt.Println(cep.ID, "Sedning share")
-			peer.Chan <- MPCMessage{io.Out, share.Uint64()}
+			peer.Chan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
 			fmt.Println(cep.ID, "Share sent")
 		}
 	}
@@ -56,8 +57,11 @@ func (io Input) Eval(cep *Protocol) {
 	} else {
 		fmt.Println(cep.ID, "Waiting for sahre")
 		m := <-cep.Peers[io.Party].ReceiveChan
+		if m.MPCMessage == nil {
+			check(errors.New("BeaverMessage received instead of MPCMessage"))
+		}
 		fmt.Println(cep.ID, "Share received")
-		cep.WireOutput[io.Out] = big.NewInt(int64(m.Value))
+		cep.WireOutput[io.Out] = big.NewInt(int64(m.MPCMessage.Value))
 	}
 }
 
@@ -148,16 +152,16 @@ func (mo Mult) Eval(cep *Protocol) {
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
 			fmt.Println("X_a sent")
-			peer.Chan <- MPCMessage{
+			peer.Chan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: X_a.Uint64(),
-			}
+			}}
 
 			fmt.Println("X_a sent")
-			peer.Chan <- MPCMessage{
+			peer.Chan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: Y_b.Uint64(),
-			}
+			}}
 			fmt.Println("Y_b sent")
 		}
 	}
@@ -165,10 +169,16 @@ func (mo Mult) Eval(cep *Protocol) {
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
 			m := <-peer.ReceiveChan
-			X_a.Add(X_a, big.NewInt(int64(m.Value)))
+			if m.MPCMessage == nil {
+				check(errors.New("BeaverMessage received instead of MPCMessage"))
+			}
+			X_a.Add(X_a, big.NewInt(int64(m.MPCMessage.Value)))
 			fmt.Print("Received X_a")
 			m = <-peer.ReceiveChan
-			Y_b.Add(Y_b, big.NewInt(int64(m.Value)))
+			if m.MPCMessage == nil {
+				check(errors.New("BeaverMessage received instead of MPCMessage"))
+			}
+			Y_b.Add(Y_b, big.NewInt(int64(m.MPCMessage.Value)))
 			fmt.Print("Received Y_b")
 		}
 	}
@@ -229,11 +239,10 @@ func (ro Reveal) Eval(cep *Protocol) {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- MPCMessage{
+			peer.Chan <- Message{MPCMessage: &MPCMessage{
 				Out:   ro.Output(),
 				Value: inputShare.Uint64(),
-			}
-
+			}}
 		}
 	}
 
@@ -243,7 +252,10 @@ func (ro Reveal) Eval(cep *Protocol) {
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
 			m := <-peer.ReceiveChan
-			sum.Add(sum, big.NewInt(int64(m.Value)))
+			if m.MPCMessage == nil {
+				check(errors.New("BeaverMessage received instead of MPCMessage"))
+			}
+			sum.Add(sum, big.NewInt(int64(m.MPCMessage.Value)))
 
 		}
 	}

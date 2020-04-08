@@ -62,9 +62,10 @@ func main() {
 			fmt.Println(lp, "connected")
 			<-time.After(time.Second) // Leave time for others to connect
 
+			lp.BindNetwork(network)
+
 			params := bfv.DefaultParams[bfv.PN13QP218]
 			beaverProtocol := lp.NewBeaverProtocol(params)
-			beaverProtocol.BindNetwork(network)
 			var currIndex uint64 = 0
 			var triplet Triplets
 			for _, op := range testCircuit.Circuit {
@@ -82,13 +83,8 @@ func main() {
 				}
 			}
 
-			beaverProtocol.Close()
-
 			// Create a new circuit evaluation protocol
 			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit, beaverTriplets[id])
-
-			// Bind evaluation protocol to the network
-			protocol.BindNetwork(network)
 
 			// Evaluate the circuit
 			protocol.Run()
