@@ -32,9 +32,7 @@ func (io Input) generateShares(cep *Protocol) {
 			check(err)
 
 			sum.Add(sum, share)
-			fmt.Println(cep.ID, "Sedning share")
 			peer.Chan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
-			fmt.Println(cep.ID, "Share sent")
 		}
 	}
 	s := big.NewInt(int64(cep.Input))
@@ -55,12 +53,10 @@ func (io Input) Eval(cep *Protocol) {
 	if io.Party == cep.ID {
 		io.generateShares(cep)
 	} else {
-		fmt.Println(cep.ID, "Waiting for sahre")
 		m := <-cep.Peers[io.Party].ReceiveChan
 		if m.MPCMessage == nil {
 			check(errors.New("BeaverMessage received instead of MPCMessage"))
 		}
-		fmt.Println(cep.ID, "Share received")
 		cep.WireOutput[io.Out] = big.NewInt(int64(m.MPCMessage.Value))
 	}
 }
@@ -137,7 +133,6 @@ func (mo Mult) Output() WireID {
 }
 
 func (mo Mult) Eval(cep *Protocol) {
-	fmt.Println("Entering mult gate")
 	x := cep.WireOutput[mo.In1]
 	y := cep.WireOutput[mo.In2]
 	a := cep.BeaverTriplets[mo.Output()].a
@@ -151,18 +146,15 @@ func (mo Mult) Eval(cep *Protocol) {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			fmt.Println("X_a sent")
 			peer.Chan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: X_a.Uint64(),
 			}}
 
-			fmt.Println("X_a sent")
 			peer.Chan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: Y_b.Uint64(),
 			}}
-			fmt.Println("Y_b sent")
 		}
 	}
 
@@ -173,13 +165,11 @@ func (mo Mult) Eval(cep *Protocol) {
 				check(errors.New("BeaverMessage received instead of MPCMessage"))
 			}
 			X_a.Add(X_a, big.NewInt(int64(m.MPCMessage.Value)))
-			fmt.Print("Received X_a")
 			m = <-peer.ReceiveChan
 			if m.MPCMessage == nil {
 				check(errors.New("BeaverMessage received instead of MPCMessage"))
 			}
 			Y_b.Add(Y_b, big.NewInt(int64(m.MPCMessage.Value)))
-			fmt.Print("Received Y_b")
 		}
 	}
 

@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
-var q = big.NewInt(1<<16 + 1)
+var q = ring.NewUint(bfv.DefaultParams[bfv.PN13QP218].T)
 
 type MPCMessage struct {
 	Out   WireID

@@ -111,7 +111,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 
 			for i, _ := range dij_clean_values {
 				// Generate error
-				err_poly := contextQP.SampleGaussianNTTNew(cep.Params.Sigma, bound)
+				err_poly := contextQP.SampleGaussianNew(cep.Params.Sigma, bound)
 
 				// Add to current polynomial
 				res := contextQP.NewPoly()
