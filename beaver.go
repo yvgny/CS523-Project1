@@ -10,7 +10,7 @@ import (
 )
 
 type BeaverMessage struct {
-	Size  int
+	Size  uint64
 	Value []byte
 }
 
@@ -20,13 +20,15 @@ type BeaverProtocol struct {
 	Peers          map[PartyID]*BeaverRemoteParty
 	Encoder        bfv.Encoder
 	Evaluator      bfv.Evaluator
-	BeaverTriplets Triplet
+	BeaverTriplets Triplets
 }
 
-type Triplet struct {
-	b  *bfv.Plaintext
-	c  []uint64
-	sk *bfv.SecretKey
+type Triplets struct {
+	ai   []uint64
+	bi   []uint64
+	biPt *bfv.Plaintext
+	ci   []uint64
+	sk   *bfv.SecretKey
 }
 
 type BeaverRemoteParty struct {
@@ -65,7 +67,7 @@ func (cep *BeaverProtocol) BindNetwork(nw *TCPNetworkStruct) {
 		// Receiving loop from remote
 		go func(conn net.Conn, rp *BeaverRemoteParty) {
 			for {
-				var size int
+				var size uint64
 
 				var err error
 				err = binary.Read(conn, binary.BigEndian, &size)
@@ -102,10 +104,6 @@ func (cep *BeaverProtocol) Run() {
 	cep.ReceiveOtherBeaver()
 	cep.ComputeC()
 
-	if cep.WaitGroup != nil {
-		cep.WaitGroup.Done()
-	}
-
 }
 
 func (cep *BeaverProtocol) ComputeC() {
@@ -123,11 +121,11 @@ func (cep *BeaverProtocol) ComputeC() {
 	decryptor := bfv.NewDecryptor(cep.Params, cep.BeaverTriplets.sk)
 	decC := decryptor.DecryptNew(encC)
 	decCVec := cep.Encoder.DecodeUint(decC)
-	cep.BeaverTriplets.c = addVec(cep.BeaverTriplets.c, decCVec, cep.Params.T)
+	cep.BeaverTriplets.ci = addVec(cep.BeaverTriplets.ci, decCVec, cep.Params.T)
 }
 
 func (cep *BeaverProtocol) ReceiveOtherBeaver() {
-	bi := cep.BeaverTriplets.b
+	bi := cep.BeaverTriplets.biPt
 	for id, peer := range cep.Peers {
 		if id != cep.ID {
 			msg := <-peer.ReceiveChan
@@ -137,7 +135,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 
 			rij := newRandomVec(1<<cep.Params.LogN, cep.Params.T)
 
-			cep.BeaverTriplets.c = subVec(cep.BeaverTriplets.c, rij, cep.Params.T)
+			cep.BeaverTriplets.ci = subVec(cep.BeaverTriplets.ci, rij, cep.Params.T)
 
 			rijPt := bfv.NewPlaintext(cep.Params)
 			cep.Encoder.EncodeUint(rij, rijPt)
@@ -150,7 +148,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 
 			//TODO: verify errors (ligne 19 et 20 protocol)
 
-			contextQP, err := ring.NewContextWithParams(1<<cep.Params.LogN, append(cep.Params.Qi, cep.Params.Pi...))
+			contextQP, err := ring.NewContextWithParams(1<<cep.Params.LogN, cep.Params.Qi)
 
 			// Get value of the ciphertext
 			dij_clean_values := dij_clean.Value()
@@ -176,7 +174,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 
 			bytes, err := dij.MarshalBinary()
 			check(err)
-			beaverMessage := BeaverMessage{Size: len(bytes), Value: bytes}
+			beaverMessage := BeaverMessage{Size: uint64(len(bytes)), Value: bytes}
 			peer.Chan <- beaverMessage
 
 		}
@@ -198,13 +196,13 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 
 	ski := keyGen.GenSecretKey()
 
-	cep.BeaverTriplets = Triplet{b: biPt, c: ci, sk: ski}
+	cep.BeaverTriplets = Triplets{ai: ai, bi: bi, biPt: biPt, ci: ci, sk: ski}
 
 	encryptor := bfv.NewEncryptorFromSk(cep.Params, ski)
 	di := encryptor.EncryptNew(aiPt)
 	bytes, err := di.MarshalBinary()
 	check(err)
-	beaverMessage := BeaverMessage{Size: len(bytes), Value: bytes}
+	beaverMessage := BeaverMessage{Size: uint64(len(bytes)), Value: bytes}
 
 	for id, peer := range cep.Peers {
 		if id != cep.ID {
@@ -212,4 +210,11 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 		}
 	}
 
+}
+
+func (cep *BeaverProtocol) Close() {
+	for _, peer := range cep.Peers {
+		close(peer.ReceiveChan)
+		close(peer.Chan)
+	}
 }

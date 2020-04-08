@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/ldsec/lattigo/bfv"
+	"github.com/ldsec/lattigo/ring"
 )
 
 var circuitID int
@@ -37,14 +40,6 @@ func main() {
 		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 	}
 
-	for _, op := range testCircuit.Circuit {
-		if triplets := op.BeaverTriplet(len(testCircuit.Peers)); triplets != nil {
-			for id, triplet := range triplets {
-				beaverTriplets[PartyID(id)][op.Output()] = triplet
-			}
-		}
-	}
-
 	wg := sync.WaitGroup{}
 	wg.Add(len(testCircuit.Peers))
 
@@ -66,6 +61,28 @@ func main() {
 			check(err)
 			fmt.Println(lp, "connected")
 			<-time.After(time.Second) // Leave time for others to connect
+
+			params := bfv.DefaultParams[bfv.PN13QP218]
+			beaverProtocol := lp.NewBeaverProtocol(params)
+			beaverProtocol.BindNetwork(network)
+			var currIndex uint64 = 0
+			var triplet Triplets
+			for _, op := range testCircuit.Circuit {
+				if op.BeaverTriplet(len(testCircuit.Peers)) {
+					if currIndex%(2<<params.LogN) == 0 {
+						beaverProtocol.Run()
+						triplet = beaverProtocol.BeaverTriplets
+						currIndex = 0
+					}
+					beaverTriplets[PartyID(id)][op.Output()] = BeaverTriplet{
+						a: ring.NewUint(triplet.ai[currIndex]),
+						b: ring.NewUint(triplet.bi[currIndex]),
+						c: ring.NewUint(triplet.ci[currIndex]),
+					}
+				}
+			}
+
+			beaverProtocol.Close()
 
 			// Create a new circuit evaluation protocol
 			protocol := lp.NewProtocol(partyInput, testCircuit.Circuit, beaverTriplets[id])

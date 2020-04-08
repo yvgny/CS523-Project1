@@ -100,6 +100,8 @@ func (cep *Protocol) Run() {
 		op.Eval(cep)
 	}
 
+	fmt.Println("for loop end")
+
 	cep.Output = cep.WireOutput[cep.Circuit[len(cep.Circuit)-1].Output()].Uint64()
 
 	if cep.WaitGroup != nil {
