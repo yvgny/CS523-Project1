@@ -36,14 +36,14 @@ func main() {
 	testCircuit = TestCircuits[circuitID-1]
 	beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
 
-	for peerID, _ := range testCircuit.Peers {
+	for peerID := range testCircuit.Peers {
 		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 	}
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(testCircuit.Peers))
 
-	for partyID, _ := range testCircuit.Peers {
+	for partyID := range testCircuit.Peers {
 		go func(id PartyID) {
 
 			defer wg.Done()

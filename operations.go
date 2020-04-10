@@ -18,10 +18,11 @@ type BeaverTriplet struct {
 
 type Operation interface {
 	Output() WireID
-	Eval(*Protocol)
-	BeaverTriplet(int) bool
+	Eval(*Protocol)         // computes the operation of the wire and stores the result in the WireOutput map
+	BeaverTriplet(int) bool // returns true if and only if beaver triplets are needed for this gate
 }
 
+// Given an input, split it between the peers and send them their share
 func (io Input) generateShares(cep *Protocol) {
 	sum := big.NewInt(0)
 	for _, peer := range cep.Peers {
@@ -48,6 +49,7 @@ func (io Input) Output() WireID {
 	return io.Out
 }
 
+// If the input is our, split it using the method 'generateShares', otherwise receive our share from the concerned peer
 func (io Input) Eval(cep *Protocol) {
 	if io.Party == cep.ID {
 		io.generateShares(cep)
@@ -131,6 +133,7 @@ func (mo Mult) Output() WireID {
 	return mo.Out
 }
 
+// Executes a multiplication using the Beaver triplet that were already generated
 func (mo Mult) Eval(cep *Protocol) {
 	x := cep.WireOutput[mo.In1]
 	y := cep.WireOutput[mo.In2]
@@ -220,6 +223,7 @@ func (ro Reveal) Output() WireID {
 	return ro.Out
 }
 
+// Reveal the output by adding all the shares together
 func (ro Reveal) Eval(cep *Protocol) {
 	inputShare := cep.WireOutput[ro.In]
 	inputShare.Mod(inputShare, q)

@@ -65,8 +65,8 @@ const (
 
 type RemoteParty struct {
 	Party
-	Chan        chan Message
-	ReceiveChan chan Message
+	Chan        chan Message // One sending channel per peer
+	ReceiveChan chan Message // One receiving channel per peer
 }
 
 func (rp *RemoteParty) String() string {
@@ -82,6 +82,7 @@ func NewRemoteParty(id PartyID, addr string) (*RemoteParty, error) {
 	return p, nil
 }
 
+// Handle each channel input (receiving and sending). It will send the message by marshalling the structure depending on the message type. The message type is the first field sent to that the unmarshalling is made easier.
 func (lp *LocalParty) BindNetwork(nw *TCPNetworkStruct) {
 	for partyID, conn := range nw.Conns {
 

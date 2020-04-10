@@ -37,7 +37,7 @@ func TestMPCProtocol(t *testing.T) {
 		wg.Wait()
 
 		for _, p := range protocol {
-			if p.Output != testCircuit.ExpOutput{
+			if p.Output != testCircuit.ExpOutput {
 				t.FailNow()
 			}
 		}
