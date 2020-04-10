@@ -65,7 +65,7 @@ const (
 
 type RemoteParty struct {
 	Party
-	Chan        chan Message // One sending channel per peer
+	SendingChan chan Message // One sending channel per peer
 	ReceiveChan chan Message // One receiving channel per peer
 }
 
@@ -77,7 +77,7 @@ func NewRemoteParty(id PartyID, addr string) (*RemoteParty, error) {
 	p := &RemoteParty{}
 	p.ID = id
 	p.Addr = addr
-	p.Chan = make(chan Message, 32)
+	p.SendingChan = make(chan Message, 32)
 	p.ReceiveChan = make(chan Message, 32)
 	return p, nil
 }
@@ -135,7 +135,7 @@ func (lp *LocalParty) BindNetwork(nw *TCPNetworkStruct) {
 			var m Message
 			var open = true
 			for open {
-				m, open = <-rp.Chan
+				m, open = <-rp.SendingChan
 				if beaverMsg := m.BeaverMessage; beaverMsg != nil {
 					check(binary.Write(conn, binary.BigEndian, Beaver))
 					check(binary.Write(conn, binary.BigEndian, beaverMsg.Size))

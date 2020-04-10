@@ -129,7 +129,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			msg = Message{
 				BeaverMessage: &beaverMessage,
 			}
-			peer.Chan <- msg
+			peer.SendingChan <- msg
 
 		}
 	}
@@ -165,7 +165,7 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 			msg := Message{
 				BeaverMessage: &beaverMessage,
 			}
-			peer.Chan <- msg
+			peer.SendingChan <- msg
 		}
 	}
 

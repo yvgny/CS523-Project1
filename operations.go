@@ -32,7 +32,7 @@ func (io Input) generateShares(cep *Protocol) {
 			check(err)
 
 			sum.Add(sum, share)
-			peer.Chan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
 		}
 	}
 	s := big.NewInt(int64(cep.Input))
@@ -148,12 +148,12 @@ func (mo Mult) Eval(cep *Protocol) {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: X_a.Uint64(),
 			}}
 
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: Y_b.Uint64(),
 			}}
@@ -230,7 +230,7 @@ func (ro Reveal) Eval(cep *Protocol) {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   ro.Output(),
 				Value: inputShare.Uint64(),
 			}}
