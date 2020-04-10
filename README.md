@@ -18,7 +18,7 @@ The application can be given a circuit ID to show an example of how a computatio
 ./mpc -id 1
 ```
 
-## Testing
+## Testing
 
 The whole test suite is launched using `go test`. Otherwise, each test circuit can be executed using the following command :
 
