@@ -2,11 +2,11 @@ package main
 
 import (
 	"errors"
-	"fmt"
-
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
+
+var Params = bfv.DefaultParams[bfv.PN13QP218]
 
 type BeaverMessage struct {
 	Size  uint64
@@ -46,9 +46,7 @@ func (lp *LocalParty) NewBeaverProtocol(params *bfv.Parameters) *BeaverProtocol 
 }
 
 func (cep *BeaverProtocol) Run() {
-
-	fmt.Println(cep, "is running")
-
+	//fmt.Println(cep, "is running")
 	cep.GenerateTriplets()
 	cep.ReceiveOtherBeaver()
 	cep.ComputeC()

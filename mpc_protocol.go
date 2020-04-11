@@ -47,6 +47,7 @@ func (cep *Protocol) Run() {
 	cep.Output = cep.WireOutput[cep.Circuit[len(cep.Circuit)-1].Output()].Uint64()
 
 	if cep.WaitGroup != nil {
+		fmt.Println(cep.LocalParty,"done with result: ", cep.Output)
 		cep.WaitGroup.Done()
 	}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"errors"
+	"github.com/ldsec/lattigo/ring"
 	"math/big"
 )
 
@@ -19,7 +20,8 @@ type BeaverTriplet struct {
 type Operation interface {
 	Output() WireID
 	Eval(*Protocol)
-	BeaverTriplet(int) bool
+	BeaverTriplet(int) []BeaverTriplet
+	IsMult() bool
 }
 
 func (io Input) generateShares(cep *Protocol) {
@@ -60,7 +62,11 @@ func (io Input) Eval(cep *Protocol) {
 	}
 }
 
-func (io Input) BeaverTriplet(count int) bool {
+func (io Input) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
+}
+
+func (io Input) IsMult() bool {
 	return false
 }
 
@@ -68,6 +74,10 @@ type Add struct {
 	In1 WireID
 	In2 WireID
 	Out WireID
+}
+
+func (a Add) IsMult() bool {
+	return false
 }
 
 func (ao Add) Output() WireID {
@@ -78,14 +88,18 @@ func (ao Add) Eval(cep *Protocol) {
 	cep.WireOutput[ao.Out] = new(big.Int).Add(cep.WireOutput[ao.In1], cep.WireOutput[ao.In2])
 }
 
-func (ao Add) BeaverTriplet(count int) bool {
-	return false
+func (ao Add) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
 }
 
 type AddCst struct {
 	In       WireID
 	CstValue uint64
 	Out      WireID
+}
+
+func (a AddCst) IsMult() bool {
+	return false
 }
 
 func (aco AddCst) Output() WireID {
@@ -99,14 +113,18 @@ func (aco AddCst) Eval(cep *Protocol) {
 	}
 }
 
-func (aco AddCst) BeaverTriplet(count int) bool {
-	return false
+func (aco AddCst) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
 }
 
 type Sub struct {
 	In1 WireID
 	In2 WireID
 	Out WireID
+}
+
+func (so Sub) IsMult() bool {
+	return false
 }
 
 func (so Sub) Output() WireID {
@@ -117,14 +135,18 @@ func (so Sub) Eval(cep *Protocol) {
 	cep.WireOutput[so.Out] = new(big.Int).Sub(cep.WireOutput[so.In1], cep.WireOutput[so.In2])
 }
 
-func (so Sub) BeaverTriplet(count int) bool {
-	return false
+func (so Sub) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
 }
 
 type Mult struct {
 	In1 WireID
 	In2 WireID
 	Out WireID
+}
+
+func (mo Mult) IsMult() bool {
+	return true
 }
 
 func (mo Mult) Output() WireID {
@@ -189,14 +211,56 @@ func (mo Mult) Eval(cep *Protocol) {
 	cep.WireOutput[mo.Output()] = z
 }
 
-func (mo Mult) BeaverTriplet(count int) bool {
-	return true
+func (mo Mult) BeaverTriplet(count int) []BeaverTriplet {
+	triplets := make([]BeaverTriplet, count)
+
+	sum_a := big.NewInt(0)
+	sum_b := big.NewInt(0)
+	sum_c := big.NewInt(0)
+	a := ring.RandInt(q)
+	b := ring.RandInt(q)
+	c := big.NewInt(0).Mul(a, b)
+	c.Mod(c, q)
+	for i := 0; i < len(triplets)-1; i++ {
+		a_share := ring.RandInt(q)
+		b_share := ring.RandInt(q)
+		c_share := ring.RandInt(q)
+		sum_a.Add(a_share, sum_a)
+		sum_b.Add(b_share, sum_b)
+		sum_c.Add(c_share, sum_c)
+		triplets[i] = BeaverTriplet{
+			a: a_share,
+			b: b_share,
+			c: c_share,
+		}
+	}
+
+	a_share := big.NewInt(0)
+	a_share.Sub(a, sum_a).Mod(a_share, q)
+
+	b_share := big.NewInt(0)
+	b_share.Sub(b, sum_b).Mod(b_share, q)
+
+	c_share := big.NewInt(0)
+	c_share.Sub(c, sum_c).Mod(c_share, q)
+
+	triplets[len(triplets)-1] = BeaverTriplet{
+		a: a_share,
+		b: b_share,
+		c: c_share,
+	}
+
+	return triplets
 }
 
 type MultCst struct {
 	In       WireID
 	CstValue uint64
 	Out      WireID
+}
+
+func (mco MultCst) IsMult() bool {
+	return false
 }
 
 func (mco MultCst) Output() WireID {
@@ -207,13 +271,17 @@ func (mco MultCst) Eval(cep *Protocol) {
 	cep.WireOutput[mco.Out] = new(big.Int).Mul(cep.WireOutput[mco.In], big.NewInt(int64(mco.CstValue)))
 }
 
-func (mco MultCst) BeaverTriplet(count int) bool {
-	return false
+func (mco MultCst) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
 }
 
 type Reveal struct {
 	In  WireID
 	Out WireID
+}
+
+func (ro Reveal) IsMult() bool {
+	return false
 }
 
 func (ro Reveal) Output() WireID {
@@ -252,6 +320,6 @@ func (ro Reveal) Eval(cep *Protocol) {
 	cep.WireOutput[ro.Output()] = sum
 }
 
-func (ro Reveal) BeaverTriplet(count int) bool {
-	return false
+func (ro Reveal) BeaverTriplet(count int) []BeaverTriplet {
+	return nil
 }
