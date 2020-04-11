@@ -2,13 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
 	"sync"
 	"testing"
 )
-
-var params = bfv.DefaultParams[bfv.PN13QP218]
 
 func TestEval(t *testing.T) {
 	for i , testCase := range TestCircuits{
@@ -36,7 +32,7 @@ func TestEval(t *testing.T) {
 				}
 
 				localParties[i].WaitGroup = wg
-				beaverProtocol[i] = localParties[i].NewBeaverProtocol(params)
+				beaverProtocol[i] = localParties[i].NewBeaverProtocol(Params)
 
 			}
 
@@ -46,27 +42,20 @@ func TestEval(t *testing.T) {
 				lp.BindNetwork(network[i])
 			}
 
-			for _, bp := range beaverProtocol{
+			wg2 := new(sync.WaitGroup)
 
-				var currIndex uint64 = 0
-				var triplet Triplets
-				for _, op := range testCase.Circuit {
-					if op.BeaverTriplet(len(testCase.Peers)) {
-						if currIndex%(1<<params.LogN) == 0 {
-							bp.Run()
-							triplet = bp.BeaverTriplets
-							currIndex = 0
-						}
-						beaverTriplets[bp.ID][op.Output()] = BeaverTriplet{
-							a: ring.NewUint(triplet.ai[currIndex]),
-							b: ring.NewUint(triplet.bi[currIndex]),
-							c: ring.NewUint(triplet.ci[currIndex]),
-						}
-					}
-				}
+			for _, p := range beaverProtocol{
+				fmt.Println(p.ID)
+				wg2.Add(1)
+
+				go func(bp *BeaverProtocol, group *sync.WaitGroup, bt map[PartyID]map[WireID]BeaverTriplet) {
+					defer group.Done()
+					ComputeBeaverTripletHE(bp, bt, testCase.Circuit)
+				}(p, wg2, beaverTriplets)
 			}
+			wg2.Wait()
 
-			fmt.Println("yooo")
+			fmt.Println(beaverTriplets)
 
 			for i, lp:= range localParties{
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
@@ -87,44 +76,4 @@ func TestEval(t *testing.T) {
 
 		})
 	}
-	/*for i, testCircuit := range TestCircuits {
-
-		N := uint64(len(testCircuit.Peers))
-		P := make([]*LocalParty, N, N)
-		protocol := make([]*Protocol, N, N)
-
-		var err error
-		wg := new(sync.WaitGroup)
-		for i := range testCircuit.Peers {
-			P[i], err = NewLocalParty(i, testCircuit.Peers)
-			P[i].WaitGroup = wg
-			check(err)
-
-			protocol[i] = P[i].NewProtocol(testCircuit.Inputs[i][GateID(i)], testCircuit.Circuit)
-		}
-
-		network := GetTestingTCPNetwork(P)
-		fmt.Println("parties connected")
-
-		for i, Pi := range protocol {
-			Pi.BindNetwork(network[i])
-		}
-
-		for _, p := range protocol {
-			p.Add(1)
-			go p.Run()
-		}
-		wg.Wait()
-
-		for _, p := range protocol {
-			if p.Output != testCircuit.ExpOutput{
-				t.FailNow()
-			}
-		}
-
-		fmt.Printf("Test for Circuit %d passed\n", i+1)
-
-	}
-
-	fmt.Println("test completed")*/
 }

@@ -6,27 +6,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
-var circuitID int
-var testCircuit *TestCircuit
 
-//func init(){
-//	flag.IntVar(&circuitID,"id",1,fmt.Sprintf("ID between 1 and %d of the template circuit", len(TestCircuits)))
-//	flag.Parse()
-//
-//	if circuitID <= 0 || circuitID > len(TestCircuits){
-//		panic(fmt.Sprintf("Invalid argument: ID must be between 1 and %d", len(TestCircuits)))
-//	}
-//
-//	testCircuit = TestCircuits[circuitID-1]
-//}
 
 func main() {
+	var circuitID int
+	var testCircuit *TestCircuit
+	var centralized bool
+
 
 	flag.IntVar(&circuitID,"id",1,fmt.Sprintf("ID between 1 and %d of the template circuit", len(TestCircuits)))
+	flag.BoolVar(&centralized, "c", false, "Use a centralized generation of beaver triplets")
+
 	flag.Parse()
 
 	if circuitID <= 0 || circuitID > len(TestCircuits){
@@ -39,6 +32,16 @@ func main() {
 
 	for peerID, _ := range testCircuit.Peers {
 		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
+	}
+
+	if centralized{
+		for _, op := range testCircuit.Circuit {
+			if triplets := op.BeaverTriplet(len(testCircuit.Peers)); triplets != nil {
+				for id, triplet := range triplets {
+					beaverTriplets[PartyID(id)][op.Output()] = triplet
+				}
+			}
+		}
 	}
 
 	wg := new(sync.WaitGroup)
@@ -67,23 +70,9 @@ func main() {
 
 			lp.BindNetwork(network)
 
-			params := bfv.DefaultParams[bfv.PN13QP218]
-			beaverProtocol := lp.NewBeaverProtocol(params)
-			var currIndex uint64 = 0
-			var triplet Triplets
-			for _, op := range testCircuit.Circuit {
-				if op.BeaverTriplet(len(testCircuit.Peers)) {
-					if currIndex%(1<<params.LogN) == 0 {
-						beaverProtocol.Run()
-						triplet = beaverProtocol.BeaverTriplets
-						currIndex = 0
-					}
-					beaverTriplets[beaverProtocol.ID][op.Output()] = BeaverTriplet{
-						a: ring.NewUint(triplet.ai[currIndex]),
-						b: ring.NewUint(triplet.bi[currIndex]),
-						c: ring.NewUint(triplet.ci[currIndex]),
-					}
-				}
+			if !centralized{
+				beaverProtocol := lp.NewBeaverProtocol(Params)
+				ComputeBeaverTripletHE(beaverProtocol, beaverTriplets, testCircuit.Circuit)
 			}
 
 			// Create a new circuit evaluation protocol
@@ -94,4 +83,25 @@ func main() {
 		}(partyID)
 	}
 	wg.Wait()
+}
+
+func ComputeBeaverTripletHE(beaverProtocol *BeaverProtocol, beaverTriplets map[PartyID]map[WireID]BeaverTriplet, circuit Circuit) {
+
+
+	var currIndex uint64 = 0
+	var triplet Triplets
+	for _, op := range circuit {
+		if op.IsMult() {
+			if currIndex%(1<<Params.LogN) == 0 {
+				beaverProtocol.Run()
+				triplet = beaverProtocol.BeaverTriplets
+				currIndex = 0
+			}
+			beaverTriplets[beaverProtocol.ID][op.Output()] = BeaverTriplet{
+				a: ring.NewUint(triplet.ai[currIndex]),
+				b: ring.NewUint(triplet.bi[currIndex]),
+				c: ring.NewUint(triplet.ci[currIndex]),
+			}
+		}
+	}
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+var Params = bfv.DefaultParams[bfv.PN13QP218]
+
 type BeaverMessage struct {
 	Size  uint64
 	Value []byte
