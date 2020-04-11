@@ -53,7 +53,6 @@ func TestEval(t *testing.T) {
 			}
 			wg2.Wait()
 
-
 			for i, lp := range localParties {
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
 			}
@@ -78,7 +77,7 @@ func TestEval(t *testing.T) {
 	}
 }
 
-func TestTrustedThirdParty(t *testing.T)  {
+func TestTrustedThirdParty(t *testing.T) {
 	for i, testCase := range TestCircuits {
 		t.Run(fmt.Sprintf("circuit%d", i+1), func(t *testing.T) {
 			N := len(testCase.Peers)
@@ -117,7 +116,6 @@ func TestTrustedThirdParty(t *testing.T)  {
 			for i, lp := range localParties {
 				lp.BindNetwork(network[i])
 			}
-
 
 			for i, lp := range localParties {
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])

@@ -451,7 +451,6 @@ var Circuit9 = TestCircuit{
 	ExpOutput: 88,
 }
 
-
 var Circuit10 = TestCircuit{
 	// f(x,y,z) = 6 + 6(x+y-z) + 3(x+y-z)^2 + (x+y-z)^3
 	Peers: map[PartyID]string{
@@ -462,7 +461,7 @@ var Circuit10 = TestCircuit{
 	Inputs: map[PartyID]map[GateID]uint64{
 		0: {0: 9},
 		1: {1: 5},
-		2:{2:7},
+		2: {2: 7},
 	},
 	Circuit: []Operation{
 		&Input{
