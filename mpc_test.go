@@ -6,8 +6,9 @@ import (
 	"testing"
 )
 
+// Iterate through all the circuits defined in test_circuit.go to verify the computation
 func TestEval(t *testing.T) {
-	for i , testCase := range TestCircuits{
+	for i, testCase := range TestCircuits {
 		t.Run(fmt.Sprintf("circuit%d", i+1), func(t *testing.T) {
 			N := len(testCase.Peers)
 			localParties := make([]*LocalParty, N, N)
@@ -15,19 +16,17 @@ func TestEval(t *testing.T) {
 			beaverProtocol := make([]*BeaverProtocol, N, N)
 
 			beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
-			for peerID, _ := range testCase.Peers {
+			for peerID := range testCase.Peers {
 				beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 			}
-
-
 
 			var err error
 			wg := new(sync.WaitGroup)
 
-			for i:= range testCase.Peers{
+			for i := range testCase.Peers {
 				localParties[i], err = NewLocalParty(i, testCase.Peers)
 
-				if err != nil{
+				if err != nil {
 					t.Errorf("creation of new local party failed")
 				}
 
@@ -38,14 +37,13 @@ func TestEval(t *testing.T) {
 
 			network := GetTestingTCPNetwork(localParties)
 
-			for i, lp := range localParties{
+			for i, lp := range localParties {
 				lp.BindNetwork(network[i])
 			}
 
 			wg2 := new(sync.WaitGroup)
 
-			for _, p := range beaverProtocol{
-				fmt.Println(p.ID)
+			for _, p := range beaverProtocol {
 				wg2.Add(1)
 
 				go func(bp *BeaverProtocol, group *sync.WaitGroup, bt map[PartyID]map[WireID]BeaverTriplet) {
@@ -55,13 +53,11 @@ func TestEval(t *testing.T) {
 			}
 			wg2.Wait()
 
-			fmt.Println(beaverTriplets)
-
-			for i, lp:= range localParties{
+			for i, lp := range localParties {
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
 			}
 
-			for _, p := range protocol{
+			for _, p := range protocol {
 				p.Add(1)
 				go p.Run()
 			}

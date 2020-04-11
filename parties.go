@@ -65,8 +65,8 @@ const (
 
 type RemoteParty struct {
 	Party
-	Chan        chan Message
-	ReceiveChan chan Message
+	SendingChan chan Message // One sending channel per peer
+	ReceiveChan chan Message // One receiving channel per peer
 }
 
 func (rp *RemoteParty) String() string {
@@ -77,11 +77,12 @@ func NewRemoteParty(id PartyID, addr string) (*RemoteParty, error) {
 	p := &RemoteParty{}
 	p.ID = id
 	p.Addr = addr
-	p.Chan = make(chan Message, 32)
+	p.SendingChan = make(chan Message, 32)
 	p.ReceiveChan = make(chan Message, 32)
 	return p, nil
 }
 
+// Handle each channel input (receiving and sending). It will send the message by marshalling the structure depending on the message type. The message type is the first field sent to that the unmarshalling is made easier.
 func (lp *LocalParty) BindNetwork(nw *TCPNetworkStruct) {
 	for partyID, conn := range nw.Conns {
 
@@ -133,7 +134,7 @@ func (lp *LocalParty) BindNetwork(nw *TCPNetworkStruct) {
 			var m Message
 			var open = true
 			for open {
-				m, open = <-rp.Chan
+				m, open = <-rp.SendingChan
 				if beaverMsg := m.BeaverMessage; beaverMsg != nil {
 					check(binary.Write(conn, binary.BigEndian, Beaver))
 					check(binary.Write(conn, binary.BigEndian, beaverMsg.Size))

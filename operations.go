@@ -19,11 +19,12 @@ type BeaverTriplet struct {
 
 type Operation interface {
 	Output() WireID
-	Eval(*Protocol)
-	BeaverTriplet(int) []BeaverTriplet
-	IsMult() bool
+	Eval(*Protocol)                    // computes the operation of the wire and stores the result in the WireOutput map
+	BeaverTriplet(int) []BeaverTriplet // If necessary, returns the sahres for a  Beaver triplet, otherwise nil
+	IsMult() bool                      // returns true if and only if the gate is a multiplication
 }
 
+// Given an input, split it between the peers and send them their share
 func (io Input) generateShares(cep *Protocol) {
 	sum := big.NewInt(0)
 	for _, peer := range cep.Peers {
@@ -33,7 +34,7 @@ func (io Input) generateShares(cep *Protocol) {
 			check(err)
 
 			sum.Add(sum, share)
-			peer.Chan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{io.Out, share.Uint64()}}
 		}
 	}
 	s := big.NewInt(int64(cep.Input))
@@ -50,6 +51,7 @@ func (io Input) Output() WireID {
 	return io.Out
 }
 
+// If the input is our, split it using the method 'generateShares', otherwise receive our share from the concerned peer
 func (io Input) Eval(cep *Protocol) {
 	if io.Party == cep.ID {
 		io.generateShares(cep)
@@ -153,6 +155,7 @@ func (mo Mult) Output() WireID {
 	return mo.Out
 }
 
+// Executes a multiplication using the Beaver triplet that were already generated
 func (mo Mult) Eval(cep *Protocol) {
 	x := cep.WireOutput[mo.In1]
 	y := cep.WireOutput[mo.In2]
@@ -167,12 +170,12 @@ func (mo Mult) Eval(cep *Protocol) {
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: X_a.Uint64(),
 			}}
 
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   mo.Output(),
 				Value: Y_b.Uint64(),
 			}}
@@ -288,13 +291,14 @@ func (ro Reveal) Output() WireID {
 	return ro.Out
 }
 
+// Reveal the output by adding all the shares together
 func (ro Reveal) Eval(cep *Protocol) {
 	inputShare := cep.WireOutput[ro.In]
 	inputShare.Mod(inputShare, q)
 
 	for _, peer := range cep.Peers {
 		if peer.ID != cep.ID {
-			peer.Chan <- Message{MPCMessage: &MPCMessage{
+			peer.SendingChan <- Message{MPCMessage: &MPCMessage{
 				Out:   ro.Output(),
 				Value: inputShare.Uint64(),
 			}}

@@ -3,26 +3,22 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
 	"sync"
 	"time"
-
-	"github.com/ldsec/lattigo/ring"
 )
-
-
 
 func main() {
 	var circuitID int
 	var testCircuit *TestCircuit
 	var centralized bool
 
-
-	flag.IntVar(&circuitID,"id",1,fmt.Sprintf("ID between 1 and %d of the template circuit", len(TestCircuits)))
+	flag.IntVar(&circuitID, "id", 1, fmt.Sprintf("ID between 1 and %d of the template circuit", len(TestCircuits)))
 	flag.BoolVar(&centralized, "c", false, "Use a centralized generation of beaver triplets")
 
 	flag.Parse()
 
-	if circuitID <= 0 || circuitID > len(TestCircuits){
+	if circuitID <= 0 || circuitID > len(TestCircuits) {
 		panic(fmt.Sprintf("Invalid argument: ID must be between 1 and %d", len(TestCircuits)))
 	}
 
@@ -30,11 +26,11 @@ func main() {
 
 	beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
 
-	for peerID, _ := range testCircuit.Peers {
+	for peerID := range testCircuit.Peers {
 		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 	}
 
-	if centralized{
+	if centralized {
 		for _, op := range testCircuit.Circuit {
 			if triplets := op.BeaverTriplet(len(testCircuit.Peers)); triplets != nil {
 				for id, triplet := range triplets {
@@ -47,16 +43,15 @@ func main() {
 	wg := new(sync.WaitGroup)
 	wg.Add(len(testCircuit.Peers))
 
-	for partyID, _ := range testCircuit.Peers {
+	for partyID := range testCircuit.Peers {
 		go func(id PartyID) {
 
-			//defer wg.Done()
+			defer wg.Done()
+
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
-			lp.WaitGroup = wg
-
 
 			// Create the network for the circuit
 			network, err := NewTCPNetwork(lp)
@@ -65,12 +60,11 @@ func main() {
 			// Connect the circuit network
 			err = network.Connect(lp)
 			check(err)
-			fmt.Println(lp, "connected")
 			<-time.After(time.Second) // Leave time for others to connect
 
 			lp.BindNetwork(network)
 
-			if !centralized{
+			if !centralized {
 				beaverProtocol := lp.NewBeaverProtocol(Params)
 				ComputeBeaverTripletHE(beaverProtocol, beaverTriplets, testCircuit.Circuit)
 			}
@@ -80,13 +74,16 @@ func main() {
 
 			// Evaluate the circuit
 			protocol.Run()
+
+			// Print output
+			fmt.Println(fmt.Sprintf("Peer %d ended computation with output %d.", protocol.ID, protocol.Output))
 		}(partyID)
 	}
 	wg.Wait()
 }
 
+// Use Beaver triplet generation protocol to generate our triplets
 func ComputeBeaverTripletHE(beaverProtocol *BeaverProtocol, beaverTriplets map[PartyID]map[WireID]BeaverTriplet, circuit Circuit) {
-
 
 	var currIndex uint64 = 0
 	var triplet Triplets

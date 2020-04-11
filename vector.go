@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
+// Generate a random vector with each component lying in [0, T[
 func newRandomVec(n, T uint64) []uint64 {
 	vec := make([]uint64, n)
 	t := ring.NewUint(T)
@@ -14,6 +15,7 @@ func newRandomVec(n, T uint64) []uint64 {
 	return vec
 }
 
+// Add two vectors component-wise and modulo T
 func addVec(a, b []uint64, T uint64) []uint64 {
 	res := make([]uint64, len(a))
 	t := ring.NewUint(T)
@@ -27,6 +29,7 @@ func addVec(a, b []uint64, T uint64) []uint64 {
 	return res
 }
 
+// Subtract two vectors component-wise and modulo T
 func subVec(a, b []uint64, T uint64) []uint64 {
 	res := make([]uint64, len(a))
 	t := ring.NewUint(T)
@@ -40,6 +43,7 @@ func subVec(a, b []uint64, T uint64) []uint64 {
 	return res
 }
 
+// Multiply two vectors componement-wise and modulo T
 func mulVec(a, b []uint64, T uint64) []uint64 {
 	res := make([]uint64, len(a))
 	t := ring.NewUint(T)
@@ -53,6 +57,7 @@ func mulVec(a, b []uint64, T uint64) []uint64 {
 	return res
 }
 
+// Negate each component of the vector, modulo T
 func negVec(a []uint64, T uint64) []uint64 {
 	res := make([]uint64, len(a))
 	t := ring.NewUint(T)

@@ -8,6 +8,7 @@ import (
 
 var Params = bfv.DefaultParams[bfv.PN13QP218]
 
+// Structure of network messages to exchange BFV ciphertexts
 type BeaverMessage struct {
 	Size  uint64
 	Value []byte
@@ -21,6 +22,7 @@ type BeaverProtocol struct {
 	BeaverTriplets Triplets
 }
 
+// Contains the parts of the Beaver triplets, with different format for caching purposes
 type Triplets struct {
 	ai   []uint64
 	bi   []uint64
@@ -29,12 +31,7 @@ type Triplets struct {
 	sk   *bfv.SecretKey
 }
 
-type BeaverRemoteParty struct {
-	*RemoteParty
-	Chan        chan BeaverMessage
-	ReceiveChan chan BeaverMessage
-}
-
+// Create a new Beaver triplet generation protocol using the BFV parameters 'params'. There will be 1<<params.logN triplets produced
 func (lp *LocalParty) NewBeaverProtocol(params *bfv.Parameters) *BeaverProtocol {
 	cep := new(BeaverProtocol)
 	cep.LocalParty = lp
@@ -45,6 +42,7 @@ func (lp *LocalParty) NewBeaverProtocol(params *bfv.Parameters) *BeaverProtocol 
 	return cep
 }
 
+// Start the generation of the triplets
 func (cep *BeaverProtocol) Run() {
 	//fmt.Println(cep, "is running")
 	cep.GenerateTriplets()
@@ -53,6 +51,8 @@ func (cep *BeaverProtocol) Run() {
 
 }
 
+// Last 'round' of Beaver's triplet generation protocol:
+// compute our share of c_i
 func (cep *BeaverProtocol) ComputeC() {
 	encC := bfv.NewCiphertext(cep.Params, 1)
 	for id, peer := range cep.Peers {
@@ -74,6 +74,8 @@ func (cep *BeaverProtocol) ComputeC() {
 	cep.BeaverTriplets.ci = addVec(cep.BeaverTriplets.ci, decCVec, cep.Params.T)
 }
 
+// Second 'round' of Beaver's triplet generation protocol:
+// exchange the d_ij values
 func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 	bi := cep.BeaverTriplets.biPt
 	for id, peer := range cep.Peers {
@@ -105,7 +107,7 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			dij_clean_values := dij_clean.Value()
 			bound := uint64(cep.Params.Sigma * 6)
 
-			for i, _ := range dij_clean_values {
+			for i := range dij_clean_values {
 				// Generate error
 				err_poly := contextQP.SampleGaussianNew(cep.Params.Sigma, bound)
 
@@ -119,22 +121,20 @@ func (cep *BeaverProtocol) ReceiveOtherBeaver() {
 			dij := bfv.NewCiphertext(cep.Params, 1)
 			dij.SetValue(dij_clean_values)
 
-			//
-			// End of errors handling
-			//
-
 			bytes, err := dij.MarshalBinary()
 			check(err)
 			beaverMessage := BeaverMessage{Size: uint64(len(bytes)), Value: bytes}
 			msg = Message{
 				BeaverMessage: &beaverMessage,
 			}
-			peer.Chan <- msg
+			peer.SendingChan <- msg
 
 		}
 	}
 }
 
+// First 'round' of Beaver's triplet generation protocol:
+// generate our values (a, b, secret key, ...)
 func (cep *BeaverProtocol) GenerateTriplets() {
 	keyGen := bfv.NewKeyGenerator(cep.Params)
 
@@ -163,7 +163,7 @@ func (cep *BeaverProtocol) GenerateTriplets() {
 			msg := Message{
 				BeaverMessage: &beaverMessage,
 			}
-			peer.Chan <- msg
+			peer.SendingChan <- msg
 		}
 	}
 
