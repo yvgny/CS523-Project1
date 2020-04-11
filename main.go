@@ -6,51 +6,53 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
-var circuitID int
-var testCircuit *TestCircuit
-
-/*func init(){
-	fmt.Println("JE SUIS INIT")
-	flag.IntVar(&circuitID,"id",1,"ID between 1 and 8 of the template circuit (default 1)")
-	flag.Parse()
-
-	if circuitID <= 0 || circuitID > 8{
-		panic("Invalid argument: ID must be between 1 and 8")
-	}
-
-	testCircuit = TestCircuits[circuitID-1]
-}*/
-
 func main() {
-	flag.IntVar(&circuitID, "id", 1, "ID between 1 and 8 of the template circuit (default 1)")
+	var circuitID int
+	var testCircuit *TestCircuit
+	var centralized bool
+
+	flag.IntVar(&circuitID, "id", 1, fmt.Sprintf("ID between 1 and %d of the template circuit", len(TestCircuits)))
+	flag.BoolVar(&centralized, "c", false, "Use a centralized generation of beaver triplets")
+
 	flag.Parse()
 
-	if circuitID <= 0 || circuitID > 9 {
-		panic("Invalid argument: ID must be between 1 and 8")
+	if circuitID <= 0 || circuitID > len(TestCircuits) {
+		panic(fmt.Sprintf("Invalid argument: ID must be between 1 and %d", len(TestCircuits)))
 	}
 
 	testCircuit = TestCircuits[circuitID-1]
+
 	beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
 
 	for peerID := range testCircuit.Peers {
 		beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 	}
 
-	wg := sync.WaitGroup{}
+	if centralized {
+		for _, op := range testCircuit.Circuit {
+			if triplets := op.BeaverTriplet(len(testCircuit.Peers)); triplets != nil {
+				for id, triplet := range triplets {
+					beaverTriplets[PartyID(id)][op.Output()] = triplet
+				}
+			}
+		}
+	}
+
+	wg := new(sync.WaitGroup)
 	wg.Add(len(testCircuit.Peers))
 
 	for partyID := range testCircuit.Peers {
 		go func(id PartyID) {
 
-			defer wg.Done()
+			//defer wg.Done()
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
+			lp.WaitGroup = wg
 
 			// Create the network for the circuit
 			network, err := NewTCPNetwork(lp)
@@ -64,23 +66,9 @@ func main() {
 
 			lp.BindNetwork(network)
 
-			params := bfv.DefaultParams[bfv.PN13QP218]
-			beaverProtocol := lp.NewBeaverProtocol(params)
-			var currIndex uint64 = 0
-			var triplet Triplets
-			for _, op := range testCircuit.Circuit {
-				if op.BeaverTriplet() {
-					if currIndex%(1<<params.LogN) == 0 {
-						beaverProtocol.Run()
-						triplet = beaverProtocol.BeaverTriplets
-						currIndex = 0
-					}
-					beaverTriplets[PartyID(id)][op.Output()] = BeaverTriplet{
-						a: ring.NewUint(triplet.ai[currIndex]),
-						b: ring.NewUint(triplet.bi[currIndex]),
-						c: ring.NewUint(triplet.ci[currIndex]),
-					}
-				}
+			if !centralized {
+				beaverProtocol := lp.NewBeaverProtocol(Params)
+				ComputeBeaverTripletHE(beaverProtocol, beaverTriplets, testCircuit.Circuit)
 			}
 
 			// Create a new circuit evaluation protocol
@@ -88,69 +76,27 @@ func main() {
 
 			// Evaluate the circuit
 			protocol.Run()
-
-			fmt.Println(lp, "completed with output", protocol.Output, "where expected is", testCircuit.ExpOutput)
-
 		}(partyID)
 	}
-
 	wg.Wait()
 }
 
-/*func main() {
-	prog := os.Args[0]
-	args := os.Args[1:]
+func ComputeBeaverTripletHE(beaverProtocol *BeaverProtocol, beaverTriplets map[PartyID]map[WireID]BeaverTriplet, circuit Circuit) {
 
-	if len(args) < 2 {
-		fmt.Println("Usage:", prog, "[Party ID] [Input]")
-		os.Exit(1)
+	var currIndex uint64 = 0
+	var triplet Triplets
+	for _, op := range circuit {
+		if op.IsMult() {
+			if currIndex%(1<<Params.LogN) == 0 {
+				beaverProtocol.Run()
+				triplet = beaverProtocol.BeaverTriplets
+				currIndex = 0
+			}
+			beaverTriplets[beaverProtocol.ID][op.Output()] = BeaverTriplet{
+				a: ring.NewUint(triplet.ai[currIndex]),
+				b: ring.NewUint(triplet.bi[currIndex]),
+				c: ring.NewUint(triplet.ci[currIndex]),
+			}
+		}
 	}
-
-	partyID, errPartyID := strconv.ParseUint(args[0], 10, 64)
-	if errPartyID != nil {
-		fmt.Println("Party ID should be an unsigned integer")
-		os.Exit(1)
-	}
-
-	partyInput, errPartyInput := strconv.ParseUint(args[1], 10, 64)
-	if errPartyInput != nil {
-		fmt.Println("Party input should be an unsigned integer")
-		os.Exit(1)
-	}
-
-	Client(PartyID(partyID), partyInput)
 }
-
-func Client(partyID PartyID, partyInput uint64) {
-
-	//N := uint64(len(peers))
-	peers := map[PartyID]string{
-		0: "localhost:6660",
-		1: "localhost:6661",
-		2: "localhost:6662",
-	}
-
-	// Create a local party
-	lp, err := NewLocalParty(partyID, peers)
-	check(err)
-
-	// Create the network for the circuit
-	network, err := NewTCPNetwork(lp)
-	check(err)
-
-	// Connect the circuit network
-	err = network.Connect(lp)
-	check(err)
-	fmt.Println(lp, "connected")
-	<-time.After(time.Second) // Leave time for others to connect
-
-	// Create a new circuit evaluation protocol
-	dummyProtocol := lp.NewDummyProtocol(partyInput)
-	// Bind evaluation protocol to the network
-	dummyProtocol.BindNetwork(network)
-
-	// Evaluate the circuit
-	dummyProtocol.Run()
-
-	fmt.Println(lp, "completed with output", dummyProtocol.Output)
-}*/

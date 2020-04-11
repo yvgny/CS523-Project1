@@ -57,8 +57,7 @@ func (tnw *TCPNetworkStruct) Connect(lp *LocalParty) error {
 			check(err)
 			var partyID PartyID
 			check(binary.Read(conn, binary.BigEndian, &partyID))
-			if rp, known := waitFor[partyID]; known {
-				fmt.Println(lp, "now connected with", rp)
+			if _, known := waitFor[partyID]; known {
 
 				tnw.connLock.Lock()
 				tnw.Conns[partyID] = conn

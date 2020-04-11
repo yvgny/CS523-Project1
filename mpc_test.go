@@ -6,45 +6,72 @@ import (
 	"testing"
 )
 
-func TestMPCProtocol(t *testing.T) {
-	for i, testCircuit := range TestCircuits {
+func TestEval(t *testing.T) {
+	for i, testCase := range TestCircuits {
+		t.Run(fmt.Sprintf("circuit%d", i+1), func(t *testing.T) {
+			N := len(testCase.Peers)
+			localParties := make([]*LocalParty, N, N)
+			protocol := make([]*Protocol, N, N)
+			beaverProtocol := make([]*BeaverProtocol, N, N)
 
-		N := uint64(len(testCircuit.Peers))
-		P := make([]*LocalParty, N, N)
-		protocol := make([]*Protocol, N, N)
-
-		var err error
-		wg := new(sync.WaitGroup)
-		for i := range testCircuit.Peers {
-			P[i], err = NewLocalParty(i, testCircuit.Peers)
-			P[i].WaitGroup = wg
-			check(err)
-
-			protocol[i] = P[i].NewProtocol(testCircuit.Inputs[i][GateID(i)], testCircuit.Circuit)
-		}
-
-		network := GetTestingTCPNetwork(P)
-		fmt.Println("parties connected")
-
-		for i, Pi := range protocol {
-			Pi.BindNetwork(network[i])
-		}
-
-		for _, p := range protocol {
-			p.Add(1)
-			go p.Run()
-		}
-		wg.Wait()
-
-		for _, p := range protocol {
-			if p.Output != testCircuit.ExpOutput {
-				t.FailNow()
+			beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
+			for peerID, _ := range testCase.Peers {
+				beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 			}
-		}
 
-		fmt.Printf("Test for Circuit %d passed\n", i+1)
+			var err error
+			wg := new(sync.WaitGroup)
 
+			for i := range testCase.Peers {
+				localParties[i], err = NewLocalParty(i, testCase.Peers)
+
+				if err != nil {
+					t.Errorf("creation of new local party failed")
+				}
+
+				localParties[i].WaitGroup = wg
+				beaverProtocol[i] = localParties[i].NewBeaverProtocol(Params)
+
+			}
+
+			network := GetTestingTCPNetwork(localParties)
+
+			for i, lp := range localParties {
+				lp.BindNetwork(network[i])
+			}
+
+			wg2 := new(sync.WaitGroup)
+
+			for _, p := range beaverProtocol {
+				fmt.Println(p.ID)
+				wg2.Add(1)
+
+				go func(bp *BeaverProtocol, group *sync.WaitGroup, bt map[PartyID]map[WireID]BeaverTriplet) {
+					defer group.Done()
+					ComputeBeaverTripletHE(bp, bt, testCase.Circuit)
+				}(p, wg2, beaverTriplets)
+			}
+			wg2.Wait()
+
+			fmt.Println(beaverTriplets)
+
+			for i, lp := range localParties {
+				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
+			}
+
+			for _, p := range protocol {
+				p.Add(1)
+				go p.Run()
+			}
+
+			wg.Wait()
+
+			for _, p := range protocol {
+				if p.Output != testCase.ExpOutput {
+					t.Errorf(p.LocalParty.String(), "result", p.Output, "expected", testCase.ExpOutput)
+				}
+			}
+
+		})
 	}
-
-	fmt.Println("test completed")
 }
