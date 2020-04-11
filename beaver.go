@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )

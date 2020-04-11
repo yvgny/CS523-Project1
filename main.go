@@ -3,10 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ldsec/lattigo/ring"
 	"sync"
 	"time"
-
-	"github.com/ldsec/lattigo/ring"
 )
 
 func main() {
@@ -47,11 +46,12 @@ func main() {
 	for partyID := range testCircuit.Peers {
 		go func(id PartyID) {
 
+			defer wg.Done()
+
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
 			lp, err := NewLocalParty(id, testCircuit.Peers)
 			check(err)
-			lp.WaitGroup = wg
 
 			// Create the network for the circuit
 			network, err := NewTCPNetwork(lp)

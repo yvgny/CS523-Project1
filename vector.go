@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/ring"
 )
 
-// Generate a random vector with each componement lying in [0, T[
+// Generate a random vector with each component lying in [0, T[
 func newRandomVec(n, T uint64) []uint64 {
 	vec := make([]uint64, n)
 	t := ring.NewUint(T)

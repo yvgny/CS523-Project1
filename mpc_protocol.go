@@ -1,14 +1,12 @@
 package main
 
 import (
-	"math/big"
-
-	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
 
 // Computation modulus for the circuits
-var q = ring.NewUint(bfv.DefaultParams[bfv.PN13QP218].T)
+var q = ring.NewUint(Params.T)
 
 // Structure of network message to carry the output value of a specific wire
 type MPCMessage struct {
@@ -45,9 +43,4 @@ func (cep *Protocol) Run() {
 	}
 
 	cep.Output = cep.WireOutput[cep.Circuit[len(cep.Circuit)-1].Output()].Uint64()
-
-	if cep.WaitGroup != nil {
-		cep.WaitGroup.Done()
-	}
-
 }

@@ -3,9 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"errors"
-	"math/big"
-
 	"github.com/ldsec/lattigo/ring"
+	"math/big"
 )
 
 type WireID uint64
