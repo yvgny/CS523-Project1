@@ -124,7 +124,6 @@ func (lp *LocalParty) BindNetwork(nw *TCPNetworkStruct) {
 				default:
 					check(errors.New("unknown message type"))
 				}
-				//fmt.Println(cep, "receiving", msg, "from", rp)
 				rp.ReceiveChan <- msg
 			}
 		}(conn, rp)
