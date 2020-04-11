@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ldsec/lattigo/bfv"
 	"github.com/ldsec/lattigo/ring"
 )
 
+// Computation modulus for the circuits
 var q = ring.NewUint(bfv.DefaultParams[bfv.PN13QP218].T)
 
 // Structure of network message to carry the output value of a specific wire
@@ -40,9 +40,6 @@ func (lp *LocalParty) NewProtocol(input uint64, circuit Circuit, beaverTriplets 
 
 // Start the circuit computation
 func (cep *Protocol) Run() {
-
-	fmt.Println(cep, "is running")
-
 	for _, op := range cep.Circuit {
 		op.Eval(cep)
 	}
@@ -50,7 +47,6 @@ func (cep *Protocol) Run() {
 	cep.Output = cep.WireOutput[cep.Circuit[len(cep.Circuit)-1].Output()].Uint64()
 
 	if cep.WaitGroup != nil {
-		fmt.Println(cep.LocalParty,"done with result: ", cep.Output)
 		cep.WaitGroup.Done()
 	}
 

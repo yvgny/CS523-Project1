@@ -47,7 +47,6 @@ func main() {
 	for partyID := range testCircuit.Peers {
 		go func(id PartyID) {
 
-			//defer wg.Done()
 			partyInput := testCircuit.Inputs[id][GateID(id)]
 			// Create a local party
 			lp, err := NewLocalParty(id, testCircuit.Peers)
@@ -61,7 +60,6 @@ func main() {
 			// Connect the circuit network
 			err = network.Connect(lp)
 			check(err)
-			fmt.Println(lp, "connected")
 			<-time.After(time.Second) // Leave time for others to connect
 
 			lp.BindNetwork(network)
@@ -76,11 +74,15 @@ func main() {
 
 			// Evaluate the circuit
 			protocol.Run()
+
+			// Print output
+			fmt.Println(fmt.Sprintf("Peer %d ended computation with output %d.", protocol.ID, protocol.Output))
 		}(partyID)
 	}
 	wg.Wait()
 }
 
+// Use Beaver triplet generation protocol to generate our triplets
 func ComputeBeaverTripletHE(beaverProtocol *BeaverProtocol, beaverTriplets map[PartyID]map[WireID]BeaverTriplet, circuit Circuit) {
 
 	var currIndex uint64 = 0

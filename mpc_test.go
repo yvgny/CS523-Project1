@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// Iterate through all the circuits defined in test_circuit.go to verify the computation
 func TestEval(t *testing.T) {
 	for i, testCase := range TestCircuits {
 		t.Run(fmt.Sprintf("circuit%d", i+1), func(t *testing.T) {
@@ -15,7 +16,7 @@ func TestEval(t *testing.T) {
 			beaverProtocol := make([]*BeaverProtocol, N, N)
 
 			beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
-			for peerID, _ := range testCase.Peers {
+			for peerID := range testCase.Peers {
 				beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
 			}
 
@@ -43,7 +44,6 @@ func TestEval(t *testing.T) {
 			wg2 := new(sync.WaitGroup)
 
 			for _, p := range beaverProtocol {
-				fmt.Println(p.ID)
 				wg2.Add(1)
 
 				go func(bp *BeaverProtocol, group *sync.WaitGroup, bt map[PartyID]map[WireID]BeaverTriplet) {
@@ -52,8 +52,6 @@ func TestEval(t *testing.T) {
 				}(p, wg2, beaverTriplets)
 			}
 			wg2.Wait()
-
-			fmt.Println(beaverTriplets)
 
 			for i, lp := range localParties {
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])

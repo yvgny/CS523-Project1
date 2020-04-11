@@ -29,7 +29,6 @@ func NewTCPNetwork(party *LocalParty) (*TCPNetworkStruct, error) {
 }
 
 func (tnw *TCPNetworkStruct) Connect(lp *LocalParty) error {
-	//var err error
 	waitFor, dialFor := make(map[PartyID]*RemoteParty), make(map[PartyID]*RemoteParty)
 
 	for _, rp := range lp.Peers {
@@ -40,8 +39,6 @@ func (tnw *TCPNetworkStruct) Connect(lp *LocalParty) error {
 			dialFor[rp.ID] = rp
 		}
 	}
-
-	//fmt.Println(lp, "dialFor:", dialFor, "waitFor", waitFor)
 
 	tnw.ready.Add(len(waitFor) + len(dialFor))
 
@@ -99,6 +96,7 @@ func (tnw *TCPNetworkStruct) Connect(lp *LocalParty) error {
 	return nil
 }
 
+// Create the TCP network for a list of peers
 func GetTestingTCPNetwork(P []*LocalParty) []*TCPNetworkStruct {
 	var err error
 	netws := make([]*TCPNetworkStruct, len(P), len(P))

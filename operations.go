@@ -20,9 +20,9 @@ type BeaverTriplet struct {
 
 type Operation interface {
 	Output() WireID
-	Eval(*Protocol) // computes the operation of the wire and stores the result in the WireOutput map
-	BeaverTriplet(int) []BeaverTriplet
-	IsMult() bool
+	Eval(*Protocol)                    // computes the operation of the wire and stores the result in the WireOutput map
+	BeaverTriplet(int) []BeaverTriplet // If necessary, returns the sahres for a  Beaver triplet, otherwise nil
+	IsMult() bool                      // returns true if and only if the gate is a multiplication
 }
 
 // Given an input, split it between the peers and send them their share
