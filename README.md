@@ -2,7 +2,7 @@
 
 A multi-party computation framework written in Go using the [lattigo](https://github.com/ldsec/lattigo) library. It provides computation of arbitrary circuit over *N* parties in a semi-honest (passive) adversarial setting. The computations are done without trusted thrid party, using BFV fully homomorphic encryption scheme to generate an arbitrary number of Beaver triplets.
 
-## Build
+##Build
 
 Clone the repo and compile using the go compiler:
 
@@ -18,9 +18,15 @@ The application can be given a circuit ID to show an example of how a computatio
 ./mpc -id 1
 ```
 
+It's also possible to disable the decentralized generation of beaver triplets using the flag `-c`. Instead, the triplet will be generated locally and given to each peer as parameters:
+
+```bash
+./mpc -c -id 7
+```
+
 ## Testing
 
-The whole test suite is launched using `go test`. Otherwise, each test circuit can be executed using the following command :
+The whole test suite can be run using `go test`. Otherwise, each test circuit can be executed using the following command :
 
 ```bash
 go test -v -run=ˆTestEval$/ˆcircuitX$
