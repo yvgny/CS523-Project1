@@ -1,8 +1,10 @@
 # MPC Framework
 
+![Unit tests](https://github.com/yvgny/MPC-Framework/workflows/Unit%20tests/badge.svg)
+
 A multi-party computation framework written in Go using the [lattigo](https://github.com/ldsec/lattigo) library. It provides computation of arbitrary circuit over *N* parties in a semi-honest (passive) adversarial setting. The computations are done without trusted thrid party, using BFV fully homomorphic encryption scheme to generate an arbitrary number of Beaver triplets.
 
-##Build
+## Build
 
 Clone the repo and compile using the go compiler:
 
