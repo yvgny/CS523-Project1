@@ -77,3 +77,68 @@ func TestEval(t *testing.T) {
 		})
 	}
 }
+
+func TestTrustedThirdParty(t *testing.T)  {
+	for i, testCase := range TestCircuits {
+		t.Run(fmt.Sprintf("circuit%d", i+1), func(t *testing.T) {
+			N := len(testCase.Peers)
+			localParties := make([]*LocalParty, N, N)
+			protocol := make([]*Protocol, N, N)
+
+			beaverTriplets := make(map[PartyID]map[WireID]BeaverTriplet)
+			for peerID := range testCase.Peers {
+				beaverTriplets[peerID] = make(map[WireID]BeaverTriplet)
+			}
+
+			for _, op := range testCase.Circuit {
+				if triplets := op.BeaverTriplet(len(testCase.Peers)); triplets != nil {
+					for id, triplet := range triplets {
+						beaverTriplets[PartyID(id)][op.Output()] = triplet
+					}
+				}
+			}
+
+			var err error
+			wg := new(sync.WaitGroup)
+
+			for i := range testCase.Peers {
+				localParties[i], err = NewLocalParty(i, testCase.Peers)
+
+				if err != nil {
+					t.Errorf("creation of new local party failed")
+				}
+
+				localParties[i].WaitGroup = wg
+
+			}
+
+			network := GetTestingTCPNetwork(localParties)
+
+			for i, lp := range localParties {
+				lp.BindNetwork(network[i])
+			}
+
+
+			for i, lp := range localParties {
+				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
+			}
+
+			for _, p := range protocol {
+				p.Add(1)
+				go func(protocol *Protocol) {
+					defer protocol.Done()
+					protocol.Run()
+				}(p)
+			}
+
+			wg.Wait()
+
+			for _, p := range protocol {
+				if p.Output != testCase.ExpOutput {
+					t.Errorf(p.LocalParty.String(), "result", p.Output, "expected", testCase.ExpOutput)
+				}
+			}
+
+		})
+	}
+}
