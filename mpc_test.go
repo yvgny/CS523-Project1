@@ -53,13 +53,17 @@ func TestEval(t *testing.T) {
 			}
 			wg2.Wait()
 
+
 			for i, lp := range localParties {
 				protocol[i] = lp.NewProtocol(testCase.Inputs[lp.ID][GateID(i)], testCase.Circuit, beaverTriplets[lp.ID])
 			}
 
 			for _, p := range protocol {
 				p.Add(1)
-				go p.Run()
+				go func(protocol *Protocol) {
+					defer protocol.Done()
+					protocol.Run()
+				}(p)
 			}
 
 			wg.Wait()
