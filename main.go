@@ -69,7 +69,7 @@ func main() {
 			var currIndex uint64 = 0
 			var triplet Triplets
 			for _, op := range testCircuit.Circuit {
-				if op.BeaverTriplet(len(testCircuit.Peers)) {
+				if op.BeaverTriplet() {
 					if currIndex%(1<<params.LogN) == 0 {
 						beaverProtocol.Run()
 						triplet = beaverProtocol.BeaverTriplets

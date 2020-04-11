@@ -18,8 +18,8 @@ type BeaverTriplet struct {
 
 type Operation interface {
 	Output() WireID
-	Eval(*Protocol)         // computes the operation of the wire and stores the result in the WireOutput map
-	BeaverTriplet(int) bool // returns true if and only if beaver triplets are needed for this gate
+	Eval(*Protocol)      // computes the operation of the wire and stores the result in the WireOutput map
+	BeaverTriplet() bool // returns true if and only if beaver triplets are needed for this gate
 }
 
 // Given an input, split it between the peers and send them their share
@@ -62,7 +62,7 @@ func (io Input) Eval(cep *Protocol) {
 	}
 }
 
-func (io Input) BeaverTriplet(count int) bool {
+func (io Input) BeaverTriplet() bool {
 	return false
 }
 
@@ -80,7 +80,7 @@ func (ao Add) Eval(cep *Protocol) {
 	cep.WireOutput[ao.Out] = new(big.Int).Add(cep.WireOutput[ao.In1], cep.WireOutput[ao.In2])
 }
 
-func (ao Add) BeaverTriplet(count int) bool {
+func (ao Add) BeaverTriplet() bool {
 	return false
 }
 
@@ -101,7 +101,7 @@ func (aco AddCst) Eval(cep *Protocol) {
 	}
 }
 
-func (aco AddCst) BeaverTriplet(count int) bool {
+func (aco AddCst) BeaverTriplet() bool {
 	return false
 }
 
@@ -119,7 +119,7 @@ func (so Sub) Eval(cep *Protocol) {
 	cep.WireOutput[so.Out] = new(big.Int).Sub(cep.WireOutput[so.In1], cep.WireOutput[so.In2])
 }
 
-func (so Sub) BeaverTriplet(count int) bool {
+func (so Sub) BeaverTriplet() bool {
 	return false
 }
 
@@ -192,7 +192,7 @@ func (mo Mult) Eval(cep *Protocol) {
 	cep.WireOutput[mo.Output()] = z
 }
 
-func (mo Mult) BeaverTriplet(count int) bool {
+func (mo Mult) BeaverTriplet() bool {
 	return true
 }
 
@@ -210,7 +210,7 @@ func (mco MultCst) Eval(cep *Protocol) {
 	cep.WireOutput[mco.Out] = new(big.Int).Mul(cep.WireOutput[mco.In], big.NewInt(int64(mco.CstValue)))
 }
 
-func (mco MultCst) BeaverTriplet(count int) bool {
+func (mco MultCst) BeaverTriplet() bool {
 	return false
 }
 
@@ -256,6 +256,6 @@ func (ro Reveal) Eval(cep *Protocol) {
 	cep.WireOutput[ro.Output()] = sum
 }
 
-func (ro Reveal) BeaverTriplet(count int) bool {
+func (ro Reveal) BeaverTriplet() bool {
 	return false
 }
