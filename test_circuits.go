@@ -7,7 +7,7 @@ type TestCircuit struct {
 	ExpOutput uint64                        // Expected output
 }
 
-var TestCircuits = []*TestCircuit{&Circuit1, &Circuit2, &Circuit3, &Circuit4, &Circuit5, &Circuit6, &Circuit7, &Circuit8, &Circuit9}
+var TestCircuits = []*TestCircuit{&Circuit1, &Circuit2, &Circuit3, &Circuit4, &Circuit5, &Circuit6, &Circuit7, &Circuit8, &Circuit9, &Circuit10}
 
 var Circuit1 = TestCircuit{
 	// f(a,b,c) = a + b + c
@@ -449,4 +449,82 @@ var Circuit9 = TestCircuit{
 		},
 	},
 	ExpOutput: 88,
+}
+
+var Circuit10 = TestCircuit{
+	// f(x,y,z) = 6 + 6(x+y-z) + 3(x+y-z)^2 + (x+y-z)^3
+	Peers: map[PartyID]string{
+		0: "localhost:6660",
+		1: "localhost:6661",
+		2: "localhost:6662",
+	},
+	Inputs: map[PartyID]map[GateID]uint64{
+		0: {0: 9},
+		1: {1: 5},
+		2: {2: 7},
+	},
+	Circuit: []Operation{
+		&Input{
+			Party: 0,
+			Out:   0,
+		},
+		&Input{
+			Party: 1,
+			Out:   1,
+		},
+		&Input{
+			Party: 2,
+			Out:   2,
+		},
+		&Add{
+			In1: 0,
+			In2: 1,
+			Out: 3,
+		},
+		&Sub{
+			In1: 3,
+			In2: 2,
+			Out: 4,
+		},
+		&Mult{
+			In1: 4,
+			In2: 4,
+			Out: 5,
+		},
+		&Mult{
+			In1: 4,
+			In2: 5,
+			Out: 6,
+		},
+		&MultCst{
+			In:       4,
+			CstValue: 6,
+			Out:      7,
+		},
+		&MultCst{
+			In:       5,
+			CstValue: 3,
+			Out:      8,
+		},
+		&Add{
+			In1: 7,
+			In2: 8,
+			Out: 9,
+		},
+		&Add{
+			In1: 6,
+			In2: 9,
+			Out: 10,
+		},
+		&AddCst{
+			In:       10,
+			CstValue: 6,
+			Out:      11,
+		},
+		&Reveal{
+			In:  11,
+			Out: 12,
+		},
+	},
+	ExpOutput: 538,
 }
