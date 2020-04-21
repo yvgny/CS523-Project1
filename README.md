@@ -35,3 +35,8 @@ go test -v -run=ˆTestEval$/ˆcircuitX$
 ```
 
 where *X* is replaced by the circuit ID of a circuit present in `test_circuits.go`.
+
+Similarly, the benchmarks can be run with the command:
+```bash
+go test -run=XXX -bench=.
+```
